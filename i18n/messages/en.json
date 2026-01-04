@@ -1,0 +1,97 @@
+{
+  "common": {
+    "buttons": {
+      "mascot_alt": "Duolingo mascot",
+      "title": "The free, fun, and effective way to learn a language!",
+      "start_button": "GET STARTED",
+      "start_button_aria": "Start learning now",
+      "login_button": "I ALREADY HAVE AN ACCOUNT",
+      "login_button_aria": "Login to existing account"
+    }
+  },
+  "features": {
+    "heading": {
+      "title": "The world's #1 way to learn a language",
+      "description": "Learning with Duolingo is fun, and research shows that it works! With quick, bite-sized lessons, you'll earn points and unlock new levels while gaining real-world communication skills."
+    },
+    "reasons": {
+      "title": "Why you'll love learning with Duolingo",
+      "description": "We combine proven teaching methods with fun, engaging lessons to help you learn effectively.",
+      "effective": {
+        "title": "Effective and efficient",
+        "description": "Our courses effectively and efficiently teach reading, listening, and speaking skills. Check out our latest research!"
+      },
+      "personalized": {
+        "title": "Personalized learning",
+        "description": "Combining the best of AI and language science, lessons are tailored to help you learn at just the right level and pace."
+      },
+      "motivated": {
+        "title": "Stay motivated",
+        "description": "We make it easy to form a habit of language learning, with game-like features, fun challenges, and reminders from our friendly mascot, Duo the owl."
+      },
+      "fun": {
+        "title": "Have fun with it!",
+        "description": "Effective learning doesn't have to be boring! Build your skills each day with engaging exercises and playful characters."
+      }
+    },
+    "super": {
+      "title": "Boost your learning with Super Duolingo",
+      "free": "Learning a language is completely free",
+      "description": "But you can remove ads and support free education with Super.",
+      "alt": "Super Duolingo",
+      "badge": "SUPER",
+      "trial": "1 weeks free",
+      "unlimited_hearts": "Unlimited hearts & no ads",
+      "personalized_practice": "Personalized practice",
+      "mastery_quizzes": "Mastery quizzes & progress tracking",
+      "button": "LEARN MORE ABOUT SUPER DUOLINGO"
+    },
+    "app_rating": "App Store rating"
+  },
+  "features2": {
+    "mobile": {
+      "title": "Learn anytime, anywhere.",
+      "description": "Make your breaks and commutes more productive with our iPhone and Android apps. Download them and see why Apple and Google gave us their highest accolades.",
+      "apple_button": "Download on the App Store",
+      "google_button": "Get it on Google Play",
+      "alt": "Duo traveling with a suitcase"
+    },
+    "schools": {
+      "title": "Duolingo for Schools",
+      "description": "Free teacher tools to help students learn languages through the Duolingo app, both in and out of the classroom.",
+      "button": "BRING DUOLINGO TO YOUR CLASSROOM",
+      "alt": "Duolingo notebook for schools"
+    },
+    "test": {
+      "title": "The Duolingo English Test",
+      "description": "Welcome to the convenient, fast, and affordable English test accepted around the world. By integrating the latest assessment science and AI, we empower anyone to take the test where and when they're at their best.",
+      "button": "CERTIFY YOUR ENGLISH",
+      "alt": "Duolingo English test"
+    },
+    "research": {
+      "title": "Effective and efficient courses",
+      "description": "Our courses effectively and efficiently teach reading, listening, and speaking skills. Check out our latest research!",
+      "button": "LEARN MORE ABOUT OUR RESEARCH",
+      "alt": "Duolingo academic research"
+    }
+  },
+  "footer": {
+    "description": "Transform your business with our powerful SaaS platform. Scale faster, work smarter, grow bigger.",
+    "links": {
+      "product": "Product",
+      "company": "Company",
+      "support": "Support",
+      "product_items": ["Features", "Pricing", "API", "Documentation"],
+      "company_items": ["About", "Blog", "Careers", "Contact"],
+      "support_items": ["Help Center", "Community", "Status", "Security"]
+    },
+    "social": {
+      "x": "X (Twitter)",
+      "github": "GitHub",
+      "linkedin": "LinkedIn",
+      "email": "Email"
+    },
+    "copyright": "© 2025 Duolingo. All rights reserved.",
+    "made_by": "Product by"
+  }
+}

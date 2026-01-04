@@ -1,0 +1,371 @@
+// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Enums
+enum ChallengeType {
+  SELECT      // Múltipla escolha
+  ASSIST      // Assistência/áudio
+  CODE        // Desafios de código
+  FILL_BLANK  // Preencher lacunas
+  REORDER     // Ordenar elementos
+  MATCH       // Pareamento
+}
+
+enum DifficultyLevel {
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+}
+
+enum Intensity { 
+  CASUAL 
+  REGULAR 
+  INTENSE 
+  HARD 
+}
+
+enum Focus { 
+  GENERAL 
+  ACADEMIC 
+  TRAVEL 
+  BUSINESS 
+  CONVERSATION 
+  FUN 
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum CourseCategory {
+  LANGUAGE
+  PROGRAMMING
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+// Models
+model Course {
+  id             Int            @id @default(autoincrement())
+  title          String
+  imageSrc       String
+  description    String?
+  language       String? // Para cursos de idioma: "en", "es", etc.
+  technology     String? // Para programação: "javascript", "python", etc.
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  category       CourseCategory
+  level          CourseLevel
+  estimatedHours Int // Duração total estimada
+
+  // Relations
+  userProgresses UserProgress[]
+  units          Unit[]
+  questionnaires UserQuestionnaire[]
+  users          User[] // users que selecionaram este curso
+
+  @@map("courses")
+}
+
+model Unit {
+  id             Int    @id @default(autoincrement())
+  title          String
+  description    String
+  courseId       Int
+  order          Int
+  estimatedHours Int
+
+  // Relations
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  // Progress tracking
+  totalExercises Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("units")
+}
+
+model Lesson {
+  id               Int     @id @default(autoincrement())
+  title            String
+  unitId           Int
+  order            Int
+  description      String?
+  content          String? @db.Text // Conteúdo teórico em markdown
+  videoUrl         String? // URL do vídeo da aula
+  estimatedMinutes Int
+
+  // Progress tracking
+  totalExercises Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  unit       Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  challenges Challenge[]
+
+  @@map("lessons")
+}
+
+model Challenge {
+  id         Int             @id @default(autoincrement())
+  lessonId   Int
+  type       ChallengeType
+  difficulty DifficultyLevel
+  question   String
+  order      Int
+
+  // Relations
+  lesson            Lesson              @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  challengeOptions  ChallengeOption[]
+  challengeProgress ChallengeProgress[]
+  // REMOVIDO: courses Course[] - Não faz sentido Challenge ter relação direta com Course
+
+  @@map("challenges")
+}
+
+model ChallengeOption {
+  id          Int     @id @default(autoincrement())
+  challengeId Int
+  text        String
+  correct     Boolean
+  imageSrc    String?
+  audioSrc    String?
+  codeSnippet String? // Para desafios de programação
+  explanation String? // Explicação da resposta
+
+  // Relations
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@map("challenge_options")
+}
+
+model ChallengeProgress {
+  id          Int       @id @default(autoincrement())
+  userId      String
+  challengeId Int
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  score       Int? // Pontuação no desafio (0-100)
+  attempts    Int       @default(0)
+
+  // Relations
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
+  @@map("challenge_progress")
+}
+
+model UserProgress {
+  userId             String @id
+  userName           String @default("User")
+  userImageSrc       String @default("/mascot.svg")
+  activeCourseId     Int?
+  hearts             Int    @default(5) // MAX_HEARTS = 5
+  points             Int    @default(0)
+  level              Int    @default(1)
+  completedLessons   Int[] // IDs das lições completadas
+  completedExercises Int[] // IDs dos exercícios completados
+
+  // Estatísticas
+  totalStudyTime   Int @default(0) // em minutos
+  dailyStudyTime   Int @default(0) // tempo de hoje
+  perfectExercises Int @default(0)
+
+  // Metadados
+  currentStreak  Int       @default(0)
+  longestStreak  Int       @default(0)
+  lastActivityAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  activeCourse Course? @relation(fields: [activeCourseId], references: [id], onDelete: Cascade)
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_progress")
+}
+
+model UserSubscription {
+  id                     Int      @id @default(autoincrement())
+  userId                 String   @unique
+  stripeCustomerId       String?   @unique
+  stripeSubscriptionId   String?   @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  tier       SubscriptionTier @default(FREE)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_subscription")
+}
+
+model UserQuestionnaire {
+  id                  Int         @id @default(autoincrement())
+  userId              String      @unique
+  discoverySource     String
+  learningGoal        String
+  languageLevel       String
+  dailyGoal           String
+  selectedCourseId    Int?
+  selectedCourseTitle String?
+  courseLevel         CourseLevel
+  intensity           Intensity
+  focus               Focus
+  recommendedUnits    Int[] // Array de unit IDs
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  selectedCourse Course? @relation(fields: [selectedCourseId], references: [id], onDelete: Cascade)
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_questionnaire")
+}
+
+model User {
+  id               String     @id @default(cuid())
+  email            String     @unique
+  name             String?
+  password         String?
+  roleId           String
+  avatarId         String?    @unique
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  lastSignInAt     DateTime?
+  emailVerifiedAt  DateTime?
+  status           UserStatus @default(ACTIVE)
+  xp               Int        @default(0)
+  streak           Int        @default(0)
+  lastActiveAt     DateTime?  @default(now())
+  gems             Int        @default(0)
+  selectedCourseId Int?
+
+  // Relations
+  role           UserRole  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  avatar         Image?    @relation(fields: [avatarId], references: [id])
+  selectedCourse Course?   @relation(fields: [selectedCourseId], references: [id])
+  sessions       Session[]
+  accounts       Account[]
+
+  // Progress and achievements
+  userProgress UserProgress?
+  achievements UserAchievement[]
+
+  // Subscription
+  userSubscription UserSubscription?
+
+  // Questionnaire
+  questionnaire UserQuestionnaire?
+
+  @@map("users")
+}
+
+model UserRole {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  users       User[]
+
+  @@map("user_roles")
+}
+
+model Image {
+  id        String    @id @default(uuid())
+  url       String    @unique
+  publicUrl String
+  path      String    @unique
+  sessionId String?
+  expiresAt DateTime?
+  userId    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User? @relation
+
+  @@index([sessionId])
+  @@index([userId])
+  @@map("images")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model UserAchievement {
+  id          String   @id @default(cuid())
+  userId      String
+  achievement String
+  earnedAt    DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_achievements")
+}

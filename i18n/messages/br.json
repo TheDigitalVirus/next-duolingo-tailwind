@@ -1,0 +1,97 @@
+{
+  "common": {
+    "buttons": {
+      "mascot_alt": "Mascote do Duolingo",
+      "title": "O jeito grátis, divertido e eficaz de aprender um idioma!",
+      "start_button": "COMECE AGORA",
+      "start_button_aria": "Comece a aprender agora",
+      "login_button": "JÁ TENHO UMA CONTA",
+      "login_button_aria": "Fazer login na conta existente"
+    }
+  },
+  "features": {
+    "heading": {
+      "title": "A maneira #1 do mundo de aprender um idioma",
+      "description": "Aprender com o Duolingo é divertido, e pesquisas mostram que funciona! Com lições rápidas e curtas, você ganha pontos e desbloqueia novos níveis enquanto desenvolve habilidades de comunicação do mundo real."
+    },
+    "reasons": {
+      "title": "Por que você vai adorar aprender com o Duolingo",
+      "description": "Combinamos métodos de ensino comprovados com lições divertidas e envolventes para ajudá-lo a aprender de forma eficaz.",
+      "effective": {
+        "title": "Eficaz e eficiente",
+        "description": "Nossos cursos ensinam de forma eficaz e eficiente as habilidades de leitura, escuta e fala. Confira nossa pesquisa mais recente!"
+      },
+      "personalized": {
+        "title": "Aprendizado personalizado",
+        "description": "Combinando o melhor da IA e da ciência da linguagem, as lições são personalizadas para ajudá-lo a aprender no nível e ritmo certos."
+      },
+      "motivated": {
+        "title": "Mantenha-se motivado",
+        "description": "Facilitamos a formação do hábito de aprendizado de idiomas, com recursos de jogo, desafios divertidos e lembretes de nossa amiga mascote, a coruja Duo."
+      },
+      "fun": {
+        "title": "Divirta-se!",
+        "description": "Aprendizado eficaz não tem que ser chato! Desenvolva suas habilidades todos os dias com exercícios envolventes e personagens divertidos."
+      }
+    },
+    "super": {
+      "title": "Aumente seu aprendizado com Super Duolingo",
+      "free": "Aprender um idioma é completamente grátis",
+      "description": "Mas você pode remover anúncios e apoiar a educação gratuita com o Super.",
+      "alt": "Super Duolingo",
+      "badge": "SUPER",
+      "trial": "1 semanas grátis",
+      "unlimited_hearts": "Corações ilimitados e sem anúncios",
+      "personalized_practice": "Prática personalizada",
+      "mastery_quizzes": "Questionários de domínio e acompanhamento de progresso",
+      "button": "SAIBA MAIS SOBRE O SUPER DUOLINGO"
+    },
+    "app_rating": "Classificação na App Store"
+  },
+  "features2": {
+    "mobile": {
+      "title": "Aprenda a qualquer hora, em qualquer lugar.",
+      "description": "Torne suas pausas e deslocamentos mais produtivos com nossos aplicativos para iPhone e Android. Baixe-os e veja por que a Apple e o Google nos deram seus mais altos reconhecimentos.",
+      "apple_button": "Baixe na App Store",
+      "google_button": "Disponível no Google Play",
+      "alt": "Duo viajando com uma mala"
+    },
+    "schools": {
+      "title": "Duolingo para Escolas",
+      "description": "Ferramentas gratuitas para professores ajudarem os alunos a aprender idiomas através do aplicativo Duolingo, tanto dentro quanto fora da sala de aula.",
+      "button": "LEVE O DUOLINGO PARA SUA SALA DE AULA",
+      "alt": "Caderno Duolingo para escolas"
+    },
+    "test": {
+      "title": "Duolingo English Test",
+      "description": "Bem-vindo ao teste de inglês conveniente, rápido e acessível aceito em todo o mundo. Integrando a mais recente ciência de avaliação e IA, capacitamos qualquer pessoa a fazer o teste onde e quando estiverem em seu melhor.",
+      "button": "CERTIFIQUE SEU INGLÊS",
+      "alt": "Duolingo English test"
+    },
+    "research": {
+      "title": "Cursos eficazes e eficientes",
+      "description": "Nossos cursos ensinam de forma eficaz e eficiente as habilidades de leitura, escuta e fala. Confira nossa pesquisa mais recente!",
+      "button": "SAIBA MAIS SOBRE NOSSA PESQUISA",
+      "alt": "Pesquisa acadêmica do Duolingo"
+    }
+  },
+  "footer": {
+    "description": "Transforme seu negócio com nossa poderosa plataforma SaaS. Escale mais rápido, trabalhe de forma mais inteligente, cresça mais.",
+    "links": {
+      "product": "Produto",
+      "company": "Empresa",
+      "support": "Suporte",
+      "product_items": ["Funcionalidades", "Preços", "API", "Documentação"],
+      "company_items": ["Sobre", "Blog", "Carreiras", "Contato"],
+      "support_items": ["Central de Ajuda", "Comunidade", "Status", "Segurança"]
+    },
+    "social": {
+      "x": "X (Twitter)",
+      "github": "GitHub",
+      "linkedin": "LinkedIn",
+      "email": "Email"
+    },
+    "copyright": "© 2025 Duolingo. Todos os direitos reservados.",
+    "made_by": "Produto por"
+  }
+}
