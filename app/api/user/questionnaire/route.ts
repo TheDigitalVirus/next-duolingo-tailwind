@@ -49,8 +49,8 @@ export async function POST(req: Request) {
         selectedCourseId: courseId ? parseInt(courseId) : null,
         selectedCourseTitle: courseTitle,
         courseLevel: "BEGINNER",
-        intensity: "regular",
-        focus: "general",
+        intensity: "REGULAR",
+        focus: "GENERAL",
       },
       create: {
         userId: session.user.id,
@@ -61,8 +61,8 @@ export async function POST(req: Request) {
         selectedCourseId: courseId ? parseInt(courseId) : null,
         selectedCourseTitle: courseTitle,
         courseLevel: "BEGINNER",
-        intensity: "regular",
-        focus: "general",
+        intensity: "REGULAR",
+        focus: "GENERAL",
       },
     });
 

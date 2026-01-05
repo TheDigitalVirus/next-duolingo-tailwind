@@ -41,7 +41,7 @@ export default async function RootLayout({
               <ThemeProvider
                 attribute="class"
                 defaultTheme="system"
-                storageKey="saas-theme"
+                storageKey="duo-theme"
                 enableSystem
                 disableTransitionOnChange
                 enableColorScheme

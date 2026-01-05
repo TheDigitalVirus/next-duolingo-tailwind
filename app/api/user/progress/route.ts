@@ -46,15 +46,15 @@ export async function PATCH(request: Request) {
     // Se temos dados do questionário, podemos personalizar ainda mais
     if (userQuestionnaireData) {
       // Ajustar baseado na intensidade (meta diária)
-      if (userQuestionnaireData.intensity === "hard") {
+      if (userQuestionnaireData.intensity === "HARD") {
         // Usuários com meta intensa podem começar com pequeno bônus
         updateData.points = (updateData.points || 0) + 50;
       }
 
       // Ajustar baseado no foco de aprendizado
       if (
-        userQuestionnaireData.focus === "academic" ||
-        userQuestionnaireData.focus === "business"
+        userQuestionnaireData.focus === "ACADEMIC" ||
+        userQuestionnaireData.focus === "BUSINESS"
       ) {
         // Foco acadêmico ou de negócios - pequeno bônus adicional
         updateData.points = (updateData.points || 0) + 25;

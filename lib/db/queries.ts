@@ -264,14 +264,14 @@ export const createUserQuestionnaire = async (data: {
   languageLevel?: string;
   dailyGoal: string;
   courseLevel: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
-  intensity: "casual" | "regular" | "intense" | "hard";
+  intensity: "CASUAL" | "REGULAR" | "INTENSE" | "HARD";
   focus:
-    | "general"
-    | "academic"
-    | "travel"
-    | "business"
-    | "conversation"
-    | "fun";
+    | "GENERAL"
+    | "ACADEMIC"
+    | "TRAVEL"
+    | "BUSINESS"
+    | "CONVERSATION"
+    | "FUN";
 }) => {
   const payload = {
     ...data,

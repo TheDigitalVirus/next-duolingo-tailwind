@@ -45,13 +45,3 @@ export async function isUnique<T extends keyof PrismaClient & string>(
 
   return !record;
 }
-
-/**
- * Fetches the first record from the `systemSetting` table.
- * @returns - Settings with related `role` data or `null`.
- */
-export async function getSettings(): Promise<any | null> {
-  // No seu schema, o modelo é SystemSetting, mas no Prisma Client é acessado como systemSetting (minúsculo)
-  const settings = await prisma.systemSetting.findFirst();
-  return settings;
-}

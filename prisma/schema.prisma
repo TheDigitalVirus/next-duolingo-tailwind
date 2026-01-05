@@ -386,3 +386,42 @@ model SystemLog {
 
   @@index([userId])
 }
+
+// model SystemSetting {
+//   id             String  @id @default(uuid())
+//   name           String  @default("Next Duolingo Tailwind")
+//   logo           String?
+//   active         Boolean @default(true)
+//   address        String?
+//   websiteURL     String?
+//   supportEmail   String?
+//   supportPhone   String?
+//   language       String  @default("pt-BR")
+//   timezone       String  @default("UTC")
+//   currency       String  @default("BRL")
+//   currencyFormat String  @default("$ {value}")
+
+//   socialFacebook  String?
+//   socialTwitter   String?
+//   socialInstagram String?
+//   socialLinkedIn  String?
+//   socialPinterest String?
+//   socialYoutube   String?
+
+//   notifyStockEmail               Boolean  @default(true)
+//   notifyStockWeb                 Boolean  @default(true)
+//   notifyStockThreshold           Int      @default(10)
+//   notifyStockRoleIds             String[]
+//   notifyNewOrderEmail            Boolean  @default(true)
+//   notifyNewOrderWeb              Boolean  @default(true)
+//   notifyNewOrderRoleIds          String[]
+//   notifyOrderStatusUpdateEmail   Boolean  @default(true)
+//   notifyOrderStatusUpdateWeb     Boolean  @default(true)
+//   notifyOrderStatusUpdateRoleIds String[]
+//   notifyPaymentFailureEmail      Boolean  @default(true)
+//   notifyPaymentFailureWeb        Boolean  @default(true)
+//   notifyPaymentFailureRoleIds    String[]
+//   notifySystemErrorFailureEmail  Boolean  @default(true)
+//   notifySystemErrorWeb           Boolean  @default(true)
+//   notifySystemErrorRoleIds       String[]
+// }

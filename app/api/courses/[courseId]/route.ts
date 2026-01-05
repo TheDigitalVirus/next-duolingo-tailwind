@@ -23,17 +23,18 @@ const getIsAdmin = async () => {
 
 export const GET = async (
   req: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> } // Changed to Promise
 ) => {
   try {
-    const courseId = parseInt(params.courseId);
+    const { courseId } = await params; // Await the params
+    const courseIdNum = parseInt(courseId);
     
-    if (isNaN(courseId)) {
+    if (isNaN(courseIdNum)) {
       return new NextResponse("Invalid course ID", { status: 400 });
     }
 
     const data = await prisma.course.findUnique({
-      where: { id: courseId },
+      where: { id: courseIdNum },
       include: {
         units: {
           orderBy: { order: "asc" },
@@ -59,7 +60,7 @@ export const GET = async (
 
 export const PUT = async (
   req: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> } // Changed to Promise
 ) => {
   try {
     const isAdmin = await getIsAdmin();
@@ -67,9 +68,10 @@ export const PUT = async (
       return new NextResponse("Unauthorized.", { status: 401 });
     }
 
-    const courseId = parseInt(params.courseId);
+    const { courseId } = await params; // Await the params
+    const courseIdNum = parseInt(courseId);
 
-    if (isNaN(courseId)) {
+    if (isNaN(courseIdNum)) {
       return new NextResponse("Invalid course ID", { status: 400 });
     }
 
@@ -77,7 +79,7 @@ export const PUT = async (
 
     // Verificar se o curso existe
     const existingCourse = await prisma.course.findUnique({
-      where: { id: courseId },
+      where: { id: courseIdNum },
     });
 
     if (!existingCourse) {
@@ -85,7 +87,7 @@ export const PUT = async (
     }
 
     const data = await prisma.course.update({
-      where: { id: courseId },
+      where: { id: courseIdNum },
       data: {
         title: body.title,
         imageSrc: body.imageSrc,
@@ -107,7 +109,7 @@ export const PUT = async (
 
 export const DELETE = async (
   req: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> } // Changed to Promise
 ) => {
   try {
     const isAdmin = await getIsAdmin();
@@ -115,15 +117,16 @@ export const DELETE = async (
       return new NextResponse("Unauthorized.", { status: 401 });
     }
 
-    const courseId = parseInt(params.courseId);
+    const { courseId } = await params; // Await the params
+    const courseIdNum = parseInt(courseId);
 
-    if (isNaN(courseId)) {
+    if (isNaN(courseIdNum)) {
       return new NextResponse("Invalid course ID", { status: 400 });
     }
 
     // Verificar se o curso existe
     const existingCourse = await prisma.course.findUnique({
-      where: { id: courseId },
+      where: { id: courseIdNum },
     });
 
     if (!existingCourse) {
@@ -131,7 +134,7 @@ export const DELETE = async (
     }
 
     const data = await prisma.course.delete({
-      where: { id: courseId },
+      where: { id: courseIdNum },
     });
 
     return NextResponse.json(data);

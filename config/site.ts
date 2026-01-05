@@ -47,7 +47,11 @@ export const siteConfig: Metadata = {
 } as const;
 
 export const links = {
-  sourceCode: "https://github.com/TheDigitalVirus/saas",
+  sourceCode: "https://github.com/TheDigitalVirus/next-duolingo-tailwind",
   email: "pedrowebdevelop@gmail.com",
 } as const;
 
+export const META_THEME_COLORS = {
+	light: "oklch(1 0 0)",
+	dark: "oklch(0.145 0 0)",
+};
