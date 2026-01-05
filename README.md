@@ -7,10 +7,7 @@ O projeto replica a UI/UX principal da plataforma, explorando responsividade, es
 
 ## 📸 Preview
 
-```bash
-/screenshots/home.png
-```
-
+![Duolngo - Interactive platform for language learning.](/public/screens/home.png "Duolingo - Interactive platform for language learning.")
 ---
 
 ## 🚀 Tecnologias Utilizadas
