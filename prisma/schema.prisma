@@ -275,6 +275,7 @@ model User {
   selectedCourse Course?   @relation(fields: [selectedCourseId], references: [id])
   sessions       Session[]
   accounts       Account[]
+  systemLog      SystemLog[]
 
   // Progress and achievements
   userProgress UserProgress?
@@ -368,4 +369,20 @@ model UserAchievement {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_achievements")
+}
+
+model SystemLog {
+  id          String   @id @default(uuid())
+  userId      String
+  createdAt   DateTime @default(now())
+  entityId    String?
+  entityType  String?
+  event       String?
+  description String?
+  ipAddress   String?
+  meta        String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

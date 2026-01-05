@@ -137,7 +137,7 @@ export function RecaptchaPopover({
 
       <Popover.Portal>
         <Popover.Content
-          className="bg-white p-4 rounded-lg shadow-lg z-50 min-w-[300px] border border-gray-200"
+          className="bg-white p-4 rounded-lg shadow-lg z-50 min-w-75 border border-gray-200"
           sideOffset={5}
           align="end"
           onInteractOutside={(e) => {
@@ -160,7 +160,7 @@ export function RecaptchaPopover({
 
             <div
               ref={containerRef}
-              className="min-h-[78px] flex items-center justify-center bg-gray-50 rounded border"
+              className="min-h-19.5 flex items-center justify-center bg-gray-50 rounded border"
               key={open ? "recaptcha-open" : "recaptcha-closed"} // Force re-render
             />
 

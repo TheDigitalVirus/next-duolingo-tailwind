@@ -44,7 +44,7 @@ export const I18N_LANGUAGES: Language[] = [
     flag: "china.svg",
   },
   {
-    code: "br",
+    code: "pt-BR",
     name: "Portuguese",
     shortName: "BR",
     direction: "ltr",
