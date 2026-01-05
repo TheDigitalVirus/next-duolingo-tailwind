@@ -10,3 +10,9 @@ updates:
     schedule:
       interval: daily
       time: "06:00"
+  - package-ecosystem: pnpm
+    directory: "/"
+    schedule:
+      interval: daily
+      time: "06:00"
+    open-pull-requests-limit: 10
