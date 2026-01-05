@@ -19,8 +19,7 @@ async function sendVerificationEmail(user: User) {
   });
 
   // Construct the verification URL.
-  const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email?token=${token.token}`;
-
+  const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${token.token}`;
   // Send the verification email com template Duolingo
   await sendEmail({
     to: user.email,
@@ -43,7 +42,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    // console.log(recaptchaToken)
+
     const isRecaptchaValid = await verifyRecaptchaToken(recaptchaToken);
     if (!isRecaptchaValid) {
       return NextResponse.json(
@@ -51,7 +50,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    // console.log(isRecaptchaValid)
+
     // Validar dados
     const schema = getSignupSchema();
     const validationResult = schema.safeParse(body);
@@ -61,7 +60,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    // console.log(validationResult)
+
     const { email, password, name }: SignupSchemaType = validationResult.data;
 
     // Verificar se usuário já existe
@@ -69,7 +68,7 @@ export async function POST(request: NextRequest) {
       where: { email },
       include: { role: true },
     });
-    // console.log(existingUser)
+
     if (existingUser) {
       if (existingUser.status === UserStatus.INACTIVE) {
         // Resend verification email for inactive user.
@@ -97,7 +96,7 @@ export async function POST(request: NextRequest) {
     let defaultRole = await prisma.userRole.findFirst({
       where: { name: "STUDENT" },
     });
-    // console.log(defaultRole)
+
     if (!defaultRole) {
       throw new Error("Default role not found. Unable to create a new user.");
     }
@@ -113,8 +112,6 @@ export async function POST(request: NextRequest) {
       },
       include: { role: true },
     });
-
-    // console.log(user)
 
     // Send the verification email.
     await sendVerificationEmail(user);
