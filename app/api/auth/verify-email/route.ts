@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { UserStatus } from "@prisma/client";
+import { sendEmail } from "@/services/send-email";
 
 export async function POST(req: NextRequest) {
   const { token } = await req.json();
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // Use a transaction para garantir atomicidade
-    const result = await prisma.$transaction(async (tx) => {
+    const user = await prisma.$transaction(async (tx) => {
       // Primeiro, tente encontrar E deletar o token em uma única operação
       const verificationToken = await tx.verificationToken.findUnique({
         where: { token },
@@ -28,8 +29,11 @@ export async function POST(req: NextRequest) {
       // Verifique se o usuário já está ativo (idempotência)
       const existingUser = await tx.user.findUnique({
         where: { id: verificationToken.identifier },
-        select: { status: true, emailVerifiedAt: true },
       });
+
+      if (!existingUser) {
+        throw new Error("USER_NOT_FOUND");
+      }
 
       if (
         existingUser?.status === UserStatus.ACTIVE &&
@@ -39,7 +43,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Atualize o usuário
-      await tx.user.update({
+      const updatedUser = await tx.user.update({
         where: { id: verificationToken.identifier },
         data: {
           status: UserStatus.ACTIVE,
@@ -53,11 +57,33 @@ export async function POST(req: NextRequest) {
         where: { token },
       });
 
-      return { success: true };
+      return updatedUser;
     });
 
+    // Enviar email de boas-vindas FORA da transação
+    // Isso evita que erros no envio de email revertam a transação
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Welcome to Duolingo!",
+        template: "welcome",
+        content: {
+          userName: user.name || "",
+          buttonUrl: `${process.env.NEXTAUTH_URL}/learn`,
+          streakDays: 7,
+        },
+      });
+    } catch (emailError) {
+      // Log o erro, mas não falhe a verificação por causa disso
+      console.error("Failed to send welcome email:", emailError);
+      // A verificação ainda foi bem sucedida, então não retorne erro
+    }
+
     return NextResponse.json(
-      { message: "Email verified successfully!" },
+      {
+        message: "Email verified successfully! Welcome email sent.",
+        redirectUrl: "/learn", // Opcional: redirecionar o frontend
+      },
       { status: 200 }
     );
   } catch (error) {
@@ -79,7 +105,12 @@ export async function POST(req: NextRequest) {
         case "ALREADY_VERIFIED":
           return NextResponse.json(
             { message: "Email already verified" },
-            { status: 200 } // 200 porque tecnicamente é sucesso
+            { status: 200 }
+          );
+        case "USER_NOT_FOUND":
+          return NextResponse.json(
+            { message: "User not found" },
+            { status: 404 }
           );
       }
     }

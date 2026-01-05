@@ -21,18 +21,13 @@ async function sendVerificationEmail(user: User) {
   // Construct the verification URL.
   const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email?token=${token.token}`;
 
-  // Send the verification email.
+  // Send the verification email com template Duolingo
   await sendEmail({
     to: user.email,
-    subject: "Account Activation",
+    subject: "Verify your email",
+    template: 'verification',
     content: {
-      title: `Hello, ${user.name}`,
-      subtitle:
-        "Click the below link to verify your email address and activate your account.",
-      buttonLabel: "Activate account",
       buttonUrl: verificationUrl,
-      description:
-        "This link is valid for 1 hour. If you did not request this email you can safely ignore it.",
     },
   });
 }
@@ -40,7 +35,6 @@ async function sendVerificationEmail(user: User) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-
     // Verificar reCAPTCHA
     const recaptchaToken = request.headers.get("x-recaptcha-token");
     if (!recaptchaToken) {
@@ -49,7 +43,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    // console.log(recaptchaToken)
     const isRecaptchaValid = await verifyRecaptchaToken(recaptchaToken);
     if (!isRecaptchaValid) {
       return NextResponse.json(
@@ -57,7 +51,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    // console.log(isRecaptchaValid)
     // Validar dados
     const schema = getSignupSchema();
     const validationResult = schema.safeParse(body);
@@ -67,7 +61,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    // console.log(validationResult)
     const { email, password, name }: SignupSchemaType = validationResult.data;
 
     // Verificar se usuário já existe
@@ -75,7 +69,7 @@ export async function POST(request: NextRequest) {
       where: { email },
       include: { role: true },
     });
-
+    // console.log(existingUser)
     if (existingUser) {
       if (existingUser.status === UserStatus.INACTIVE) {
         // Resend verification email for inactive user.
@@ -98,16 +92,16 @@ export async function POST(request: NextRequest) {
 
     // Hash da senha
     const hashedPassword = await bcrypt.hash(password, 10);
-
+    
     // Garantir que a role STUDENT existe
     let defaultRole = await prisma.userRole.findFirst({
-      where: { name: "student" },
+      where: { name: "STUDENT" },
     });
-
+    // console.log(defaultRole)
     if (!defaultRole) {
       throw new Error("Default role not found. Unable to create a new user.");
     }
-
+    
     // Create a new user with INACTIVE status.
     const user = await prisma.user.create({
       data: {
@@ -119,6 +113,8 @@ export async function POST(request: NextRequest) {
       },
       include: { role: true },
     });
+
+    // console.log(user)
 
     // Send the verification email.
     await sendVerificationEmail(user);
