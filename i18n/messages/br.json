@@ -93,5 +93,28 @@
     },
     "copyright": "© 2025 Duolingo. Todos os direitos reservados.",
     "made_by": "Produto por"
+  },
+  "verification": {
+    "success": {
+      "title": "Email Verificado!",
+      "subtitle": "Seu email foi verificado com sucesso.",
+      "description": "Agora você pode fazer login em sua conta e começar sua jornada de aprendizado de idiomas.",
+      "login_button": "Ir para o Login",
+      "redirect": "Se você não for redirecionado automaticamente, clique no botão acima."
+    },
+    "error": {
+      "title": "Falha na Verificação",
+      "subtitle": "Não foi possível verificar seu endereço de email.",
+      "description": "O link de verificação pode ter expirado ou é inválido.",
+      "try_again": "Tente se Cadastrar Novamente",
+      "homepage": "Ir para a Página Inicial",
+      "support": "Se você continuar com problemas, entre em contato com o suporte."
+    },
+    "loading": {
+      "title": "Verificando Email",
+      "subtitle": "Por favor, aguarde enquanto verificamos seu endereço de email...",
+      "verifying": "Verificando...",
+      "redirecting": "Redirecionando para a página de login..."
+    }
   }
 }

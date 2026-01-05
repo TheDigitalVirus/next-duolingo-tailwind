@@ -93,5 +93,28 @@
     },
     "copyright": "© 2025 Duolingo. All rights reserved.",
     "made_by": "Product by"
+  },
+  "verification": {
+    "success": {
+      "title": "Email Verified!",
+      "subtitle": "Your email has been successfully verified.",
+      "description": "You can now log in to your account and start your language learning journey.",
+      "login_button": "Go to Login",
+      "redirect": "If you're not redirected automatically, click the button above."
+    },
+    "error": {
+      "title": "Verification Failed",
+      "subtitle": "We couldn't verify your email address.",
+      "description": "The verification link may have expired or is invalid.",
+      "try_again": "Try Signing Up Again",
+      "homepage": "Go to Homepage",
+      "support": "If you continue to have problems, please contact support."
+    },
+    "loading": {
+      "title": "Verifying Email",
+      "subtitle": "Please wait while we verify your email address...",
+      "verifying": "Verifying...",
+      "redirecting": "Redirecting to login page..."
+    }
   }
 }
