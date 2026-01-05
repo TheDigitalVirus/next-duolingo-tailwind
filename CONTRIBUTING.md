@@ -37,7 +37,7 @@ Este é um projeto **educacional** focado na prática avançada de Tailwind CSS,
 ## Tem dúvidas sobre o projeto?
 
 - Para **dúvidas técnicas** sobre configuração ou funcionamento, [abra uma discussão no GitHub](https://github.com/TheDigitalVirus/next-duolingo-tailwind/discussions).
-- Consulte o [README.md](https://github.com/TheDigitalVirus/next-duolingo-tailwind/blob/main/README.md) para instruções detalhadas de instalação e execução.
+- Consulte o [README.md](https://github.com/TheDigitalVirus/next-duolingo-tailwind/blob/master/README.md) para instruções detalhadas de instalação e execução.
 
 ## Configuração do Ambiente de Desenvolvimento
 
