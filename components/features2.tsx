@@ -2,10 +2,8 @@
 
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Star, Download, Apple, Play, School, BookOpen } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Apple, Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 // Import your images (make sure these are in your public folder)

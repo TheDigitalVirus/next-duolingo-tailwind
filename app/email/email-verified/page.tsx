@@ -1,4 +1,6 @@
-import { useTranslation } from "@/hooks/useTranslation";
+"use client";
+
+import { useTranslation } from 'react-i18next';
 
 export default function EmailVerifiedPage() {
   const { t } = useTranslation();

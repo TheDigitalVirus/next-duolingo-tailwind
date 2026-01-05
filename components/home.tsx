@@ -9,7 +9,7 @@ import TrustedBrands from "@/components/trusted-brands";
 import DuoHome from "@/public/duo-home.svg";
 import { LoginModal } from "./modals/login-modal";
 import { SignupModal } from "./modals/signup-modal";
-import useTranslation from "@/hooks/useTranslation";
+import { useTranslation } from 'react-i18next';
 
 export default function Home() {
   const router = useRouter();
