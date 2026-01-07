@@ -40,7 +40,7 @@ export default function EmailVerifiedPage() {
           
           <div className="pt-4">
             <a
-              href="/login"
+              href="/"
               className="inline-block w-full bg-[#58cc02] text-white font-bold py-3 px-6 rounded-xl hover:bg-[#4cb302] transition-colors shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#58cc02] focus:ring-offset-2"
               aria-label={t("verification.success.login_button")}
             >

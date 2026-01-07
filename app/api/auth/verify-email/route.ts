@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Redirecionar para a página de sucesso
-    return NextResponse.redirect(new URL("/email/email-verified/page", request.url));
+    return NextResponse.redirect(new URL("/email/email-verified", request.url));
   } catch (error) {
     console.error("Email verification error:", error);
     return NextResponse.redirect(new URL("/email/verification-error?error=server-error", request.url));
