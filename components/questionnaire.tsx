@@ -227,7 +227,7 @@ export default function Questionnaire({
           </div>
 
           <div className="flex items-start space-x-4">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-500">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500">
               <span className="font-bold text-white">✓</span>
             </div>
             <div>
@@ -239,7 +239,7 @@ export default function Questionnaire({
           </div>
 
           <div className="flex items-start space-x-4">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-green-500">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500">
               <span className="font-bold text-white">✓</span>
             </div>
             <div>

@@ -7,6 +7,15 @@
       "start_button_aria": "Start learning now",
       "login_button": "I ALREADY HAVE AN ACCOUNT",
       "login_button_aria": "Login to existing account"
+    },
+    "navigation": {
+      "learn": "Learn",
+      "leaderboard": "Leaderboard",
+      "shop": "Shop",
+      "profile": "Profile",
+      "characters": "Characters",
+      "practice-hub": "Practice Hub",
+      "quests": "Quests"
     }
   },
   "features": {

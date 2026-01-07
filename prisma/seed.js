@@ -65,7 +65,7 @@ const COURSES = [
   },
   {
     title: "Python for Beginners",
-    imageSrc: "/images/courses/python-beginner.jpg",
+    imageSrc: "/images/courses/python.svg",
     description: "Start your Python programming journey",
     technology: "python",
     category: CourseCategory.PROGRAMMING,

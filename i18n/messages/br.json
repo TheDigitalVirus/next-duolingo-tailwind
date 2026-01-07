@@ -7,6 +7,90 @@
       "start_button_aria": "Comece a aprender agora",
       "login_button": "JÁ TENHO UMA CONTA",
       "login_button_aria": "Fazer login na conta existente"
+    },
+    "navigation": {
+      "learn": "Aprender",
+      "leaderboard": "Ligas",
+      "shop": "Loja",
+      "profile": "Perfil",
+      "characters": "Letras",
+      "practice-hub": "Pratica",
+      "quests": "Missões",
+      "plus": "Mais"
+    },
+    "labels": {
+      "language": "Idioma",
+      "languages": "Idiomas disponíveis",
+      "proVersion": "Versão Pro",
+      "unlimitedHearts": "Corações ilimitados",
+      "user": {
+        "name": "Nome",
+        "username": "Nome de usuário",
+        "email": "E-mail",
+        "password": "Senha",
+        "phone": "Telefone",
+        "address": "Endereço"
+      },
+      "hearts": "Corações",
+      "points": "Pontos",
+      "level": "Nível",
+      "progress": "Progresso",
+      "unlimited": "Ilimitado",
+      "premium": "Premium"
+    },
+    "messages": {
+      "welcome": "Bem-vindo ao Fluency Script Learning",
+      "home": {
+        "title": "Aprenda, pratique e domine a programação",
+        "subtitle": "A plataforma de aprendizado que adapta ao seu ritmo"
+      },
+      "courses": {
+        "selectOne": "Escolha seu curso",
+        "description": "Selecione os cursos que deseja aprender. Você pode escolher quantos quiser!",
+        "languageCourses": "Cursos de Programação",
+        "selectedCount": "{{count}} curso(s) selecionado(s)",
+        "selectAtLeastOne": "Selecione pelo menos um curso para continuar",
+        "selected": "Curso selecionado:",
+        "readyToStart": "Ótima escolha! Agora vamos personalizar sua experiência.",
+        "selectToContinue": "Selecione um curso para continuar",
+        "startLearning": "Personalizar Meu Aprendizado",
+        "freeForever": "Todos os cursos são gratuitos. Comece agora e aprenda no seu ritmo!"
+      },
+      "upgrade": {
+        "title": "Atualize para Pro",
+        "description": "Obtenha corações ilimitados e muito mais!",
+        "benefits": "Acesso a recursos exclusivos"
+      },
+      "leaderboard": {
+        "description": "Veja sua posição em relação a outros alunos da comunidade"
+      },
+      "quests": {
+        "description": "Complete missões e ganhe pontos"
+      },
+      "shop": {
+        "description": "Use seus pontos para comprar itens especiais"
+      },
+      "auth": {
+        "existingAccount": "Já tenho uma conta",
+        "newAccount": "Criar nova conta",
+        "forgotPassword": "Esqueci minha senha"
+      },
+      "loading": "Carregando...",
+      "saving": "Salvando...",
+      "error": "Ocorreu um erro",
+      "success": "Sucesso!",
+      "noResults": "Nenhum resultado encontrado"
+    },
+    "actions": {
+      "upgrade": "Atualizar para Pro",
+      "viewAll": "Ver tudo",
+      "refillHearts": "Recarregar corações",
+      "startNow": "Começar agora",
+      "startLearning": "Continuar aprendendo",
+      "selectCourses": "Selecionar cursos",
+      "goBack": "Voltar",
+      "login": "Entrar",
+      "signUp": "Cadastrar"
     }
   },
   "features": {

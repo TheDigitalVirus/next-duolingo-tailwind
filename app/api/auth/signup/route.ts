@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const validationResult = schema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        { message: "Invalid data", errors: validationResult.error.errors },
+        { message: "Invalid data", errors: validationResult.error.issues },
         { status: 400 }
       );
     }
