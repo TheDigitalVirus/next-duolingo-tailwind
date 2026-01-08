@@ -1,7 +1,6 @@
 // schema.prisma
 generator client {
-  provider   = "prisma-client"
-  output     = "./generated"
+  provider   = "prisma-client-js"
   engineType = "client"
 }
 
