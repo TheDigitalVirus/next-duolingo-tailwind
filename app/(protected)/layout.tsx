@@ -56,17 +56,6 @@ const MainLayout = ({ children }: PropsWithChildren) => {
   const isSelectCoursesPage = pathname === "/select-courses";
   const isOnboardingPage = pathname === "/onboarding";
 
-  if (status === "loading" || isChecking) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-500 border-t-transparent mx-auto"></div>
-          <p className="mt-2 text-gray-600">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (!session) {
     return null;
   }

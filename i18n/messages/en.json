@@ -7,6 +7,24 @@
       "start_button_aria": "Start learning now",
       "login_button": "I ALREADY HAVE AN ACCOUNT",
       "login_button_aria": "Login to existing account"
+    },
+    "language": "Site language",
+    "selectLanguage": "Select a language",
+    "siteLanguage": "English",
+    "loading": "Loading...",
+    "loadingCourses": "Loading courses...",
+    "students": "students",
+    "estimatedTime": "{{hours}}h estimated",
+    "selectCourses": {
+      "title": "Courses for English speakers",
+      "mobileTitle": "Choose your course",
+      "subtitle": "Choose a course to start your learning journey",
+      "readyToStart": "Ready to start?",
+      "startLearning": "Personalize My Learning",
+      "selectCourseFirst": "Selected course",
+      "selectPrompt": "Select a course to continue",
+      "popular": "Popular",
+      "noCourses": "No courses available"
     }
   },
   "features": {

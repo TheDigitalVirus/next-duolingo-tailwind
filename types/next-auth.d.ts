@@ -19,6 +19,16 @@ declare module "next-auth" {
     emailVerified?: Date | null;
     createdAt: Date;
     updatedAt: Date;
+    hearts: number;
+    totalPoints: number;
+    level: number;
+    totalStudyTime: number;
+    dailyStudyTime: number;
+    perfectExercises: number;
+    currentStreak: number;
+    longestStreak: number;
+    activeCourseId: number | null;
+    activeCourseTitle: string | null;
   }
 
   interface Session {
@@ -37,6 +47,16 @@ declare module "next-auth" {
       emailVerified?: Date | null;
       createdAt: Date;
       updatedAt: Date;
+      hearts: number;
+      totalPoints: number;
+      level: number;
+      totalStudyTime: number;
+      dailyStudyTime: number;
+      perfectExercises: number;
+      currentStreak: number;
+      longestStreak: number;
+      activeCourseId: number | null;
+      activeCourseTitle: string | null;
     };
   }
 }

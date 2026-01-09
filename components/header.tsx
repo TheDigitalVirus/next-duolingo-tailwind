@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Menu } from 'lucide-react';
-import { RainbowButton } from '@/components/magicui/rainbow-button';
-import { Drawer, DrawerTitle, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
 import Logo from '@/components/logo';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
@@ -13,7 +10,6 @@ import { LanguageDropDown } from './languageDropDown';
 const Header = () => {
   const { resolvedTheme, setTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

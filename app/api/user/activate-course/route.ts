@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { EnrollmentStatus } from "@prisma/client";
 import authOptions from "../../auth/[...nextauth]/auth-options";
 
 export async function POST(req: Request) {
@@ -39,44 +40,94 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
-    // Atualizar o usuário com o curso selecionado
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        selectedCourseId: courseId,
+    // Verificar se o usuário já tem matrícula neste curso
+    const existingEnrollment = await prisma.userEnrollment.findUnique({
+      where: {
+        userId_courseId: {
+          userId,
+          courseId,
+        },
       },
     });
 
-    // Verificar se o userProgress existe
-    const existingProgress = await prisma.userProgress.findUnique({
-      where: { userId },
-    });
+    let enrollment;
 
-    if (existingProgress) {
-      // Atualizar progresso existente
-      await prisma.userProgress.update({
-        where: { userId },
-        data: { activeCourseId: courseId },
+    if (existingEnrollment) {
+      // Desativar todas as outras matrículas do usuário
+      await prisma.userEnrollment.updateMany({
+        where: {
+          userId,
+          id: { not: existingEnrollment.id },
+          isActive: true,
+        },
+        data: {
+          isActive: false,
+        },
+      });
+
+      // Ativar esta matrícula
+      enrollment = await prisma.userEnrollment.update({
+        where: {
+          userId_courseId: {
+            userId,
+            courseId,
+          },
+        },
+        data: {
+          isActive: true,
+          status: EnrollmentStatus.ACTIVE,
+          lastAccessedAt: new Date(),
+        },
       });
     } else {
-      // Criar novo progresso
-      await prisma.userProgress.create({
+      // Desativar todas as outras matrículas do usuário
+      await prisma.userEnrollment.updateMany({
+        where: {
+          userId,
+          isActive: true,
+        },
+        data: {
+          isActive: false,
+        },
+      });
+
+      // Buscar primeira lição do curso para definir como atual
+      const firstLesson = await prisma.lesson.findFirst({
+        where: {
+          unit: {
+            courseId,
+          },
+        },
+        orderBy: {
+          order: 'asc',
+        },
+        include: {
+          unit: true,
+        },
+      });
+
+      // Criar nova matrícula
+      enrollment = await prisma.userEnrollment.create({
         data: {
           userId,
-          activeCourseId: courseId,
-          userName: session.user.name || "User",
-          userImageSrc: session.user.image || "/mascot.svg",
-          hearts: 5,
-          points: 0,
-          level: 1,
+          courseId,
+          status: EnrollmentStatus.ACTIVE,
+          isActive: true,
+          progressPercent: 0,
           completedLessons: [],
-          completedExercises: [],
-          totalStudyTime: 0,
-          dailyStudyTime: 0,
-          perfectExercises: 0,
-          currentStreak: 0,
-          longestStreak: 0,
-          lastActivityAt: new Date(),
+          completedChallenges: [],
+          coursePoints: 0,
+          courseHearts: 5,
+          perfectChallenges: 0,
+          totalTimeSpent: 0,
+          enrolledAt: new Date(),
+          startedAt: new Date(),
+          lastAccessedAt: new Date(),
+          currentUnitId: firstLesson?.unitId,
+          currentLessonId: firstLesson?.id,
+        },
+        include: {
+          course: true,
         },
       });
     }
@@ -84,12 +135,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: "Course activated successfully",
-      course: {
-        id: course.id,
-        title: course.title,
-        category: course.category,
-        level: course.level,
-      },
+      enrollment,
     });
   } catch (error) {
     console.error("Error activating course:", error);

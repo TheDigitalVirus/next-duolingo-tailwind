@@ -1,4 +1,4 @@
-// schema.prisma
+// schema.prisma atualizado para suportar múltiplos cursos
 generator client {
   provider   = "prisma-client-js"
   engineType = "client"
@@ -8,14 +8,14 @@ datasource db {
   provider  = "postgresql"
 }
 
-// Enums
+// Enums (mantidos)
 enum ChallengeType {
-  SELECT      // Múltipla escolha
-  ASSIST      // Assistência/áudio
-  CODE        // Desafios de código
-  FILL_BLANK  // Preencher lacunas
-  REORDER     // Ordenar elementos
-  MATCH       // Pareamento
+  SELECT
+  ASSIST
+  CODE
+  FILL_BLANK
+  REORDER
+  MATCH
 }
 
 enum DifficultyLevel {
@@ -63,25 +63,127 @@ enum CourseLevel {
   ADVANCED
 }
 
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  ABANDONED
+}
+
 // Models
+model User {
+  id               String     @id @default(cuid())
+  email            String     @unique
+  name             String?
+  password         String?
+  roleId           String
+  avatarId         String?    @unique
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  lastSignInAt     DateTime?
+  emailVerifiedAt  DateTime?
+  status           UserStatus @default(ACTIVE)
+  xp               Int        @default(0)
+  streak           Int        @default(0)
+  lastActiveAt     DateTime?  @default(now())
+  gems             Int        @default(0)
+
+  // REMOVIDO: selectedCourseId (agora tem múltiplos cursos)
+
+  // Relations
+  role           UserRole         @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  avatar         Image?           @relation(fields: [avatarId], references: [id])
+  sessions       Session[]
+  accounts       Account[]
+  systemLog      SystemLog[]
+
+  // Progress and achievements
+  achievements   UserAchievement[]
+  
+  // Novas relações para múltiplos cursos
+  enrollments    UserEnrollment[]
+  
+  // Subscription
+  userSubscription UserSubscription?
+
+  // Questionnaire
+  questionnaire UserQuestionnaire?
+
+  // Estatísticas gerais do usuário (mantidas de UserProgress)
+  hearts           Int      @default(5)
+  totalPoints      Int      @default(0)
+  level            Int      @default(1)
+  totalStudyTime   Int      @default(0) // em minutos
+  dailyStudyTime   Int      @default(0)
+  perfectExercises Int      @default(0)
+  currentStreak    Int      @default(0)
+  longestStreak    Int      @default(0)
+  lastActivityAt   DateTime?
+
+  @@map("users")
+  challengeProgresses ChallengeProgress[]
+}
+
+// NOVO MODELO: Matrícula do usuário em cursos
+model UserEnrollment {
+  id               Int              @id @default(autoincrement())
+  userId           String
+  courseId         Int
+  status           EnrollmentStatus @default(ACTIVE)
+  isActive         Boolean          @default(false) // se é o curso ativo no momento
+  progressPercent  Float            @default(0.0)
+  
+  // Progress tracking específico deste curso
+  completedLessons   Int[] // IDs das lições completadas neste curso
+  completedChallenges Int[] // IDs dos desafios completados neste curso
+  currentUnitId    Int?    // Unidade atual do usuário neste curso
+  currentLessonId  Int?    // Lição atual do usuário neste curso
+  
+  // Estatísticas específicas deste curso
+  coursePoints     Int      @default(0)
+  courseHearts     Int      @default(5)
+  perfectChallenges Int     @default(0)
+  totalTimeSpent   Int      @default(0) // minutos
+  
+  // Metadados
+  enrolledAt       DateTime @default(now())
+  startedAt        DateTime?
+  completedAt      DateTime?
+  lastAccessedAt   DateTime @default(now())
+  
+  // Relations
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  currentUnit      Unit?    @relation("CurrentUnit", fields: [currentUnitId], references: [id])
+  currentLesson    Lesson?  @relation("CurrentLesson", fields: [currentLessonId], references: [id])
+  
+  @@unique([userId, courseId])
+  @@map("user_enrollments")
+  
+  @@index([userId, isActive])
+  @@index([userId, lastAccessedAt])
+  challengeProgresses ChallengeProgress[]
+}
+
 model Course {
-  id             Int            @id @default(autoincrement())
+  id             Int                @id @default(autoincrement())
   title          String
   imageSrc       String
   description    String?
   language       String? // Para cursos de idioma: "en", "es", etc.
   technology     String? // Para programação: "javascript", "python", etc.
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
   category       CourseCategory
   level          CourseLevel
   estimatedHours Int // Duração total estimada
+  isFeatured     Boolean            @default(false)
+  isPublic       Boolean            @default(true)
 
   // Relations
-  userProgresses UserProgress[]
   units          Unit[]
-  questionnaires UserQuestionnaire[]
-  users          User[] // users que selecionaram este curso
+  enrollments    UserEnrollment[]   // Usuários matriculados
+  questionnaires UserQuestionnaire[] // Questionários que recomendaram este curso
 
   @@map("courses")
 }
@@ -104,6 +206,9 @@ model Unit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relação com UserEnrollment (unidade atual)
+  currentEnrollments UserEnrollment[] @relation("CurrentUnit")
+
   @@map("units")
 }
 
@@ -113,8 +218,8 @@ model Lesson {
   unitId           Int
   order            Int
   description      String?
-  content          String? @db.Text // Conteúdo teórico em markdown
-  videoUrl         String? // URL do vídeo da aula
+  content          String? @db.Text
+  videoUrl         String?
   estimatedMinutes Int
 
   // Progress tracking
@@ -126,6 +231,9 @@ model Lesson {
   // Relations
   unit       Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
   challenges Challenge[]
+  
+  // Relação com UserEnrollment (lição atual)
+  currentEnrollments UserEnrollment[] @relation("CurrentLesson")
 
   @@map("lessons")
 }
@@ -142,7 +250,6 @@ model Challenge {
   lesson            Lesson              @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   challengeOptions  ChallengeOption[]
   challengeProgress ChallengeProgress[]
-  // REMOVIDO: courses Course[] - Não faz sentido Challenge ter relação direta com Course
 
   @@map("challenges")
 }
@@ -154,10 +261,9 @@ model ChallengeOption {
   correct     Boolean
   imageSrc    String?
   audioSrc    String?
-  codeSnippet String? // Para desafios de programação
-  explanation String? // Explicação da resposta
+  codeSnippet String?
+  explanation String?
 
-  // Relations
   challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
 
   @@map("challenge_options")
@@ -167,47 +273,19 @@ model ChallengeProgress {
   id          Int       @id @default(autoincrement())
   userId      String
   challengeId Int
+  enrollmentId Int      // A qual matrícula pertence este progresso
   completed   Boolean   @default(false)
   completedAt DateTime?
-  score       Int? // Pontuação no desafio (0-100)
+  score       Int?      // Pontuação no desafio (0-100)
   attempts    Int       @default(0)
 
   // Relations
-  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  challenge  Challenge  @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollment UserEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, challengeId])
+  @@unique([enrollmentId, challengeId]) // Um desafio por matrícula
   @@map("challenge_progress")
-}
-
-model UserProgress {
-  userId             String @id
-  userName           String @default("User")
-  userImageSrc       String @default("/mascot.svg")
-  activeCourseId     Int?
-  hearts             Int    @default(5) // MAX_HEARTS = 5
-  points             Int    @default(0)
-  level              Int    @default(1)
-  completedLessons   Int[] // IDs das lições completadas
-  completedExercises Int[] // IDs dos exercícios completados
-
-  // Estatísticas
-  totalStudyTime   Int @default(0) // em minutos
-  dailyStudyTime   Int @default(0) // tempo de hoje
-  perfectExercises Int @default(0)
-
-  // Metadados
-  currentStreak  Int       @default(0)
-  longestStreak  Int       @default(0)
-  lastActivityAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  activeCourse Course? @relation(fields: [activeCourseId], references: [id], onDelete: Cascade)
-  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_progress")
 }
 
 model UserSubscription {
@@ -220,7 +298,7 @@ model UserSubscription {
   tier       SubscriptionTier @default(FREE)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  // Relations
+  
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_subscription")
@@ -238,55 +316,15 @@ model UserQuestionnaire {
   courseLevel         CourseLevel
   intensity           Intensity
   focus               Focus
-  recommendedUnits    Int[] // Array de unit IDs
+  recommendedCourses  Int[]       // Array de course IDs recomendados
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   selectedCourse Course? @relation(fields: [selectedCourseId], references: [id], onDelete: Cascade)
   user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_questionnaire")
-}
-
-model User {
-  id               String     @id @default(cuid())
-  email            String     @unique
-  name             String?
-  password         String?
-  roleId           String
-  avatarId         String?    @unique
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  lastSignInAt     DateTime?
-  emailVerifiedAt  DateTime?
-  status           UserStatus @default(ACTIVE)
-  xp               Int        @default(0)
-  streak           Int        @default(0)
-  lastActiveAt     DateTime?  @default(now())
-  gems             Int        @default(0)
-  selectedCourseId Int?
-
-  // Relations
-  role           UserRole  @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  avatar         Image?    @relation(fields: [avatarId], references: [id])
-  selectedCourse Course?   @relation(fields: [selectedCourseId], references: [id])
-  sessions       Session[]
-  accounts       Account[]
-  systemLog      SystemLog[]
-
-  // Progress and achievements
-  userProgress UserProgress?
-  achievements UserAchievement[]
-
-  // Subscription
-  userSubscription UserSubscription?
-
-  // Questionnaire
-  questionnaire UserQuestionnaire?
-
-  @@map("users")
 }
 
 model UserRole {
@@ -310,7 +348,6 @@ model Image {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   user User? @relation
 
   @@index([sessionId])
@@ -364,7 +401,6 @@ model UserAchievement {
   achievement String
   earnedAt    DateTime @default(now())
 
-  // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_achievements")
@@ -385,42 +421,3 @@ model SystemLog {
 
   @@index([userId])
 }
-
-// model SystemSetting {
-//   id             String  @id @default(uuid())
-//   name           String  @default("Next Duolingo Tailwind")
-//   logo           String?
-//   active         Boolean @default(true)
-//   address        String?
-//   websiteURL     String?
-//   supportEmail   String?
-//   supportPhone   String?
-//   language       String  @default("pt-BR")
-//   timezone       String  @default("UTC")
-//   currency       String  @default("BRL")
-//   currencyFormat String  @default("$ {value}")
-
-//   socialFacebook  String?
-//   socialTwitter   String?
-//   socialInstagram String?
-//   socialLinkedIn  String?
-//   socialPinterest String?
-//   socialYoutube   String?
-
-//   notifyStockEmail               Boolean  @default(true)
-//   notifyStockWeb                 Boolean  @default(true)
-//   notifyStockThreshold           Int      @default(10)
-//   notifyStockRoleIds             String[]
-//   notifyNewOrderEmail            Boolean  @default(true)
-//   notifyNewOrderWeb              Boolean  @default(true)
-//   notifyNewOrderRoleIds          String[]
-//   notifyOrderStatusUpdateEmail   Boolean  @default(true)
-//   notifyOrderStatusUpdateWeb     Boolean  @default(true)
-//   notifyOrderStatusUpdateRoleIds String[]
-//   notifyPaymentFailureEmail      Boolean  @default(true)
-//   notifyPaymentFailureWeb        Boolean  @default(true)
-//   notifyPaymentFailureRoleIds    String[]
-//   notifySystemErrorFailureEmail  Boolean  @default(true)
-//   notifySystemErrorWeb           Boolean  @default(true)
-//   notifySystemErrorRoleIds       String[]
-// }

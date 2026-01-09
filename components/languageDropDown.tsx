@@ -1,118 +1,227 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-
 import { I18N_LANGUAGES } from "@/i18n/config";
 import { useLanguage } from "@/providers/i18n-provider";
-
+import { useTranslation } from "react-i18next";
+import { ChevronDown } from "lucide-react";
 import { Flag } from "./flag";
 
-export const LanguageDropDown = () => {
-  const [languagesShown, setLanguagesShown] = useState(false);
+interface LanguageDropDownProps {
+  mobileMode?: boolean;
+  onClose?: () => void;
+}
+
+export const LanguageDropDown = ({ mobileMode = false, onClose }: LanguageDropDownProps) => {
+  const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { language, changeLanguage } = useLanguage();
-  const [closingTimeout, setClosingTimeout] = useState<NodeJS.Timeout | null>(
-    null,
-  );
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setLanguagesShown(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        onClose?.();
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      if (closingTimeout) clearTimeout(closingTimeout);
-    };
-  }, [closingTimeout]);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
 
   const handleLanguageChange = (languageCode: string) => {
     changeLanguage(languageCode);
-    setLanguagesShown(false);
+    setIsOpen(false);
+    onClose?.();
   };
 
-  const handleMouseLeave = () => {
-    // Adiciona um pequeno delay antes de fechar
-    const timeout = setTimeout(() => {
-      setLanguagesShown(false);
-    }, 300); // 300ms de delay
-    setClosingTimeout(timeout);
+  const getNativeName = (code: string) => {
+    return I18N_LANGUAGES.find(lang => lang.code === code)?.name || code;
   };
 
-  const cancelClose = () => {
-    if (closingTimeout) {
-      clearTimeout(closingTimeout);
-      setClosingTimeout(null);
-    }
-  };
+  // Se for mobile mode, mostra apenas a lista sem o botão toggle
+  if (mobileMode) {
+    return (
+      <div className="py-1 max-h-60 overflow-y-auto">
+        <div className="px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground dark:text-muted-foreground mb-2">
+            {t('common.selectLanguage')}
+          </p>
+        </div>
+        {I18N_LANGUAGES.map((lang) => {
+          const nativeName = getNativeName(lang.code);
+          const isCurrent = lang.code === language.code;
+
+          return (
+            <button
+              key={lang.code}
+              onClick={() => handleLanguageChange(lang.code)}
+              className={`
+                flex w-full items-center gap-3 px-3 py-2.5 
+                text-left text-sm transition-colors duration-150
+                hover:bg-accent dark:hover:bg-accent
+                active:bg-accent/50 dark:active:bg-accent/50
+                ${isCurrent
+                  ? 'text-primary dark:text-primary font-semibold bg-accent dark:bg-accent'
+                  : 'text-foreground dark:text-foreground'
+                }
+              `}
+            >
+              <div className="shrink-0">
+                <Flag language={lang} width={24} height={24} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate">
+                  {nativeName}
+                </div>
+                {lang.name && lang.shortName !== nativeName && (
+                  <div className="text-xs text-muted-foreground dark:text-muted-foreground truncate">
+                    {lang.name}
+                  </div>
+                )}
+              </div>
+              {isCurrent && (
+                <svg
+                  className="w-4 h-4 text-primary dark:text-primary shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="3"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div
       ref={dropdownRef}
-      className="relative flex cursor-pointer items-center gap-2"
-      onMouseEnter={() => {
-        cancelClose();
-        setLanguagesShown(true);
-      }}
-      onMouseLeave={handleMouseLeave}
-      aria-haspopup={true}
-      aria-expanded={languagesShown}
-      role="button"
+      className="relative cursor-pointer outline-none"
       tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          setLanguagesShown((isShown) => !isShown);
-        }
-        if (e.key === "Escape") {
-          setLanguagesShown(false);
-        }
-      }}
     >
-      <div className="flex items-center gap-2">
-        <Flag language={language} width={36} height={36} />
-        <span className="hidden text-sm font-medium text-foreground sm:block">
-          {language.name}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="
+          group
+          bg-none border-none p-0 
+          cursor-pointer relative 
+          inline-flex touch-manipulation 
+          transform-gpu -webkit-tap-highlight-transparent
+          -webkit-touch-callout-none 
+          select-none
+          outline-none
+          transition-filter duration-200
+          hover:brightness-95
+          active:brightness-90
+        "
+        aria-expanded={isOpen}
+      >
+        <span className="
+          select-inherit
+          text-[14px] md:text-[15px]
+          font-bold 
+          tracking-[0.8px] 
+          uppercase
+          text-foreground dark:text-foreground
+          whitespace-nowrap
+          flex items-center
+          gap-1
+          group-hover:text-primary dark:group-hover:text-primary
+        ">
+          {t('common.language')}: {getNativeName(language.code)}
+          <svg
+            className={`
+              w-3 h-3 md:w-4 md:h-4 transition-transform duration-200 
+              ${isOpen ? 'rotate-180' : ''}
+              group-hover:translate-y-0.5
+            `}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth="3"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
         </span>
-      </div>
+      </button>
 
-      {languagesShown && (
-        <div
-          className="absolute left-1/2 top-full z-50 mt-2 w-48 -translate-x-1/2 transform rounded-lg border border-border bg-background shadow-lg sm:w-48"
-          onMouseEnter={cancelClose}
-          onMouseLeave={handleMouseLeave}
-        >
-          <div className="p-2">
-            <div className="mb-2 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-center">
-              Select Language
+      {isOpen && (
+        <div className="
+          absolute 
+          right-0 
+          mt-2 
+          bg-popover dark:bg-popover
+          rounded-xl 
+          shadow-2xl 
+          border 
+          border-border dark:border-border
+          z-50 
+          w-56
+          max-h-[80vh]
+          overflow-hidden
+          animate-in 
+          fade-in 
+          zoom-in-95 
+          duration-150
+        ">
+          <div className="py-1 max-h-80 overflow-y-auto">
+            <div className="px-4 py-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground dark:text-muted-foreground mb-2">
+                {t('common.selectLanguage')}
+              </p>
             </div>
-            <ul className="space-y-1 max-h-60 overflow-y-auto">
-              {I18N_LANGUAGES.map((lang) => (
-                <li key={lang.code}>
-                  <button
-                    type="button"
-                    onClick={() => handleLanguageChange(lang.code)}
-                    className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                      language.code === lang.code
-                        ? "bg-primary text-primary-foreground"
-                        : "text-foreground hover:bg-accent"
-                    }`}
-                    tabIndex={0}
-                  >
-                    <Flag language={lang} width={36} height={36}/>
-                    <span className="flex-1 text-left">{lang.name}</span>
-                    {language.code === lang.code && (
-                      <span className="text-xs">✓</span>
+            {I18N_LANGUAGES.map((lang) => {
+              const nativeName = getNativeName(lang.code);
+              const isCurrent = lang.code === language.code;
+
+              return (
+                <button
+                  key={lang.code}
+                  onClick={() => handleLanguageChange(lang.code)}
+                  className={`
+                    flex w-full items-center gap-3 px-4 py-3 
+                    text-left text-sm transition-colors duration-150
+                    hover:bg-accent dark:hover:bg-accent
+                    active:bg-accent/50 dark:active:bg-accent/50
+                    ${isCurrent
+                      ? 'text-primary dark:text-primary font-semibold bg-accent dark:bg-accent'
+                      : 'text-foreground dark:text-foreground'
+                    }
+                  `}
+                >
+                  <div className="shrink-0">
+                    <Flag language={lang} width={28} height={28} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">
+                      {nativeName}
+                    </div>
+                    {lang.name && lang.shortName !== nativeName && (
+                      <div className="text-xs text-muted-foreground dark:text-muted-foreground truncate">
+                        {lang.name}
+                      </div>
                     )}
-                  </button>
-                </li>
-              ))}
-            </ul>
+                  </div>
+                  {isCurrent && (
+                    <ChevronDown />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

@@ -7,6 +7,24 @@
       "start_button_aria": "Comece a aprender agora",
       "login_button": "JÁ TENHO UMA CONTA",
       "login_button_aria": "Fazer login na conta existente"
+    },
+    "language": "Idioma do site",
+    "selectLanguage": "Selecione um idioma",
+    "siteLanguage": "Português",
+    "loading": "Carregando...",
+    "loadingCourses": "Carregando cursos...",
+    "students": "alunos",
+    "estimatedTime": "{{hours}}h estimadas",
+    "selectCourses": {
+      "title": "Cursos para quem fala Português",
+      "mobileTitle": "Escolha seu curso",
+      "subtitle": "Escolha um idioma para começar a aprender",
+      "readyToStart": "Pronto para começar?",
+      "startLearning": "Começar a aprender",
+      "selectCourseFirst": "Selecione um curso primeiro",
+      "selectPrompt": "Selecione um idioma para começar",
+      "popular": "Popular",
+      "noCourses": "Nenhum curso disponível"
     }
   },
   "features": {

@@ -9,11 +9,10 @@ export default defineConfig({
   schema: path.join("prisma", "schema.prisma"),
   migrations: {
     path: path.join("prisma", "migrations"),
-    seed: "node prisma/seed.js", // Remove dotenv-cli aqui, pois já carregamos as variáveis
+    seed: "tsx prisma/seed.ts", // Remove dotenv-cli aqui, pois já carregamos as variáveis
   },
   
   datasource: {
-    // url: process.env.DATABASE_URL || "",
-    shadowDatabaseUrl: process.env.DATABASE_URL || "",
+    url: process.env.DIRECT_URL,
   },
 });

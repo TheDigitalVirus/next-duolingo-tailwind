@@ -5,21 +5,51 @@ import authOptions from "@/app/api/auth/[...nextauth]/auth-options";
 
 const DAY_IN_MS = 86_400_000;
 
+// Funções auxiliares
+const getActiveEnrollment = cache(async (userId: string) => {
+  const enrollment = await prisma.userEnrollment.findFirst({
+    where: {
+      userId,
+      isActive: true,
+      status: "ACTIVE",
+    },
+    include: {
+      course: true,
+      currentUnit: true,
+      currentLesson: true,
+    },
+  });
+
+  return enrollment;
+});
+
+// Queries principais
 export const getCourses = cache(async () => {
-  const data = await prisma.course.findMany();
+  const data = await prisma.course.findMany({
+    where: { isPublic: true },
+    orderBy: { title: "asc" },
+  });
   return data;
 });
 
-export const getUserProgress = cache(async () => {
+export const getUserData = cache(async () => {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 
   if (!userId) return null;
 
-  const data = await prisma.userProgress.findFirst({
-    where: { userId },
+  const data = await prisma.user.findUnique({
+    where: { id: userId },
     include: {
-      activeCourse: true,
+      enrollments: {
+        where: { status: "ACTIVE" },
+        include: {
+          course: true,
+          currentUnit: true,
+          currentLesson: true,
+        },
+        orderBy: { isActive: "desc" },
+      },
     },
   });
 
@@ -29,12 +59,12 @@ export const getUserProgress = cache(async () => {
 export const getUnits = cache(async () => {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
-  const userProgress = await getUserProgress();
+  const activeEnrollment = await getActiveEnrollment(userId!);
 
-  if (!userId || !userProgress?.activeCourseId) return [];
+  if (!userId || !activeEnrollment?.courseId) return [];
 
   const data = await prisma.unit.findMany({
-    where: { courseId: userProgress.activeCourseId },
+    where: { courseId: activeEnrollment.courseId },
     orderBy: { order: "asc" },
     include: {
       lessons: {
@@ -44,7 +74,10 @@ export const getUnits = cache(async () => {
             orderBy: { order: "asc" },
             include: {
               challengeProgress: {
-                where: { userId },
+                where: { 
+                  userId,
+                  enrollmentId: activeEnrollment.id 
+                },
               },
             },
           },
@@ -97,13 +130,13 @@ export const getCourseById = cache(async (courseId: number) => {
 export const getCourseProgress = cache(async () => {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
-  const userProgress = await getUserProgress();
+  const activeEnrollment = await getActiveEnrollment(userId!);
 
-  if (!userId || !userProgress?.activeCourseId) return null;
+  if (!userId || !activeEnrollment?.courseId) return null;
 
   const unitsInActiveCourse = await prisma.unit.findMany({
     orderBy: { order: "asc" },
-    where: { courseId: userProgress.activeCourseId },
+    where: { courseId: activeEnrollment.courseId },
     include: {
       lessons: {
         orderBy: { order: "asc" },
@@ -112,7 +145,10 @@ export const getCourseProgress = cache(async () => {
           challenges: {
             include: {
               challengeProgress: {
-                where: { userId },
+                where: { 
+                  userId,
+                  enrollmentId: activeEnrollment.id 
+                },
               },
             },
           },
@@ -136,6 +172,7 @@ export const getCourseProgress = cache(async () => {
   return {
     activeLesson: firstUncompletedLesson,
     activeLessonId: firstUncompletedLesson?.id,
+    enrollment: activeEnrollment,
   };
 });
 
@@ -158,7 +195,10 @@ export const getLesson = cache(async (id?: number) => {
         include: {
           challengeOptions: true,
           challengeProgress: {
-            where: { userId },
+            where: { 
+              userId,
+              enrollmentId: courseProgress?.enrollment.id 
+            },
           },
         },
       },
@@ -228,18 +268,29 @@ export const getTopTenUsers = cache(async () => {
 
   if (!userId) return [];
 
-  const data = await prisma.userProgress.findMany({
-    orderBy: { points: "desc" },
+  const data = await prisma.user.findMany({
+    orderBy: { totalPoints: "desc" },
     take: 10,
     select: {
-      userId: true,
-      userName: true,
-      userImageSrc: true,
-      points: true,
+      id: true,
+      name: true,
+      totalPoints: true,
+      level: true,
+      avatar: {
+        select: {
+          url: true,
+        },
+      },
     },
   });
 
-  return data;
+  return data.map(user => ({
+    userId: user.id,
+    userName: user.name || "Anonymous",
+    userImageSrc: user.avatar?.url || "/mascot.svg",
+    points: user.totalPoints,
+    level: user.level,
+  }));
 });
 
 export const getUserQuestionnaire = cache(async () => {
@@ -251,8 +302,6 @@ export const getUserQuestionnaire = cache(async () => {
   const data = await prisma.userQuestionnaire.findFirst({
     where: { userId },
   });
-
-  if (!data) return null;
 
   return data;
 });
@@ -272,6 +321,8 @@ export const createUserQuestionnaire = async (data: {
     | "BUSINESS"
     | "CONVERSATION"
     | "FUN";
+  selectedCourseId?: number;
+  selectedCourseTitle?: string;
 }) => {
   const payload = {
     ...data,
@@ -291,12 +342,331 @@ export const getIsAdmin = async () => {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: {
-      role: {
-        select: { name: true },
+    include: {
+      role: true,
+    },
+  });
+
+  return user?.role?.name === "ADMIN" || user?.role?.name === "OWNER";
+};
+
+export const getEnrolledUsersCountByCourseId = cache(async (courseId: number) => {
+  const count = await prisma.userEnrollment.count({
+    where: {
+      courseId,
+      status: "ACTIVE",
+    },
+  });
+  
+  return count;
+});
+
+export const getCoursesWithEnrollmentCountOptimized = cache(async (sourceLanguage?: string) => {
+  // Conta usuários por curso através das matrículas
+  const enrollmentCounts = await prisma.userEnrollment.groupBy({
+    by: ['courseId'],
+    _count: {
+      courseId: true,
+    },
+    where: {
+      status: "ACTIVE",
+    },
+  });
+  
+  // Cria um mapa de courseId -> count
+  const enrollmentMap = new Map<number, number>();
+  enrollmentCounts.forEach(item => {
+    enrollmentMap.set(item.courseId, item._count.courseId);
+  });
+  
+  // Busca todos os cursos públicos
+  const courses = await prisma.course.findMany({
+    where: { isPublic: true },
+  });
+  
+  // Combina os dados
+  const coursesWithCounts = courses.map(course => ({
+    ...course,
+    enrolledCount: enrollmentMap.get(course.id) || 0,
+  }));
+  
+  // Filtra por idioma de origem se especificado
+  if (sourceLanguage) {
+    return coursesWithCounts.filter(course => 
+      course.language === sourceLanguage
+    );
+  }
+  
+  return coursesWithCounts;
+});
+
+// Novas queries específicas para múltiplos cursos
+
+export const getUserEnrollments = cache(async () => {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
+  if (!userId) return [];
+
+  const data = await prisma.userEnrollment.findMany({
+    where: { 
+      userId,
+      status: "ACTIVE",
+    },
+    include: {
+      course: true,
+      currentUnit: true,
+      currentLesson: true,
+    },
+    orderBy: [
+      { isActive: "desc" },
+      { lastAccessedAt: "desc" },
+    ],
+  });
+
+  return data;
+});
+
+export const getUserEnrollmentByCourseId = cache(async (courseId: number) => {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
+  if (!userId) return null;
+
+  const data = await prisma.userEnrollment.findUnique({
+    where: {
+      userId_courseId: {
+        userId,
+        courseId,
+      },
+    },
+    include: {
+      course: {
+        include: {
+          units: {
+            include: {
+              lessons: {
+                include: {
+                  challenges: {
+                    include: {
+                      challengeProgress: {
+                        where: { 
+                          userId,
+                          enrollment: {
+                            userId,
+                            courseId,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
   });
 
-  return user?.role?.name === "admin";
+  return data;
+});
+
+export const switchActiveCourse = async (courseId: number) => {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
+  if (!userId) throw new Error("User not authenticated");
+
+  // Desativar todos os cursos ativos do usuário
+  await prisma.userEnrollment.updateMany({
+    where: {
+      userId,
+      isActive: true,
+    },
+    data: {
+      isActive: false,
+    },
+  });
+
+  // Ativar o novo curso
+  const enrollment = await prisma.userEnrollment.update({
+    where: {
+      userId_courseId: {
+        userId,
+        courseId,
+      },
+    },
+    data: {
+      isActive: true,
+      lastAccessedAt: new Date(),
+    },
+  });
+
+  return enrollment;
 };
+
+export const enrollInCourse = async (courseId: number) => {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
+  if (!userId) throw new Error("User not authenticated");
+
+  // Verificar se já está matriculado
+  const existingEnrollment = await prisma.userEnrollment.findUnique({
+    where: {
+      userId_courseId: {
+        userId,
+        courseId,
+      },
+    },
+  });
+
+  if (existingEnrollment) {
+    // Se já existe, apenas ativar
+    return await switchActiveCourse(courseId);
+  }
+
+  // Buscar primeira lição do curso
+  const firstLesson = await prisma.lesson.findFirst({
+    where: {
+      unit: {
+        courseId,
+      },
+    },
+    orderBy: {
+      order: 'asc',
+    },
+    include: {
+      unit: true,
+    },
+  });
+
+  // Criar nova matrícula
+  const enrollment = await prisma.userEnrollment.create({
+    data: {
+      userId,
+      courseId,
+      status: "ACTIVE",
+      isActive: true, // Será o curso ativo
+      currentUnitId: firstLesson?.unitId,
+      currentLessonId: firstLesson?.id,
+      enrolledAt: new Date(),
+      startedAt: new Date(),
+      lastAccessedAt: new Date(),
+    },
+    include: {
+      course: true,
+    },
+  });
+
+  return enrollment;
+};
+
+export const updateLessonProgress = async (
+  lessonId: number, 
+  completedChallenges: number[]
+) => {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
+  if (!userId) throw new Error("User not authenticated");
+
+  // Buscar matrícula ativa
+  const activeEnrollment = await getActiveEnrollment(userId);
+  
+  if (!activeEnrollment) {
+    throw new Error("No active enrollment found");
+  }
+
+  // Buscar lição para obter o unitId
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    include: {
+      unit: true,
+    },
+  });
+
+  if (!lesson) {
+    throw new Error("Lesson not found");
+  }
+
+  // Atualizar matrícula com a lição atual
+  await prisma.userEnrollment.update({
+    where: { id: activeEnrollment.id },
+    data: {
+      currentUnitId: lesson.unitId,
+      currentLessonId: lessonId,
+      completedLessons: {
+        push: lessonId,
+      },
+      completedChallenges: {
+        push: completedChallenges,
+      },
+      lastAccessedAt: new Date(),
+    },
+  });
+
+  // Buscar próximo lesson para sugerir
+  const nextLesson = await prisma.lesson.findFirst({
+    where: {
+      unitId: lesson.unitId,
+      order: { gt: lesson.order },
+    },
+    orderBy: { order: 'asc' },
+  });
+
+  return {
+    nextLesson,
+    currentLesson: lesson,
+  };
+};
+
+export const getLeaderboardData = cache(async () => {
+  const users = await prisma.user.findMany({
+    where: {
+      status: "ACTIVE",
+    },
+    orderBy: [
+      { totalPoints: "desc" },
+      { currentStreak: "desc" },
+      { level: "desc" },
+    ],
+    take: 100,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      totalPoints: true,
+      level: true,
+      currentStreak: true,
+      longestStreak: true,
+      totalStudyTime: true,
+      perfectExercises: true,
+      avatar: {
+        select: {
+          url: true,
+        },
+      },
+      enrollments: {
+        where: { isActive: true },
+        include: {
+          course: true,
+        },
+      },
+    },
+  });
+
+  return users.map((user, index) => ({
+    rank: index + 1,
+    userId: user.id,
+    userName: user.name || "Anonymous",
+    userImageSrc: user.avatar?.url || "/mascot.svg",
+    points: user.totalPoints,
+    level: user.level,
+    streak: user.currentStreak,
+    totalStudyTime: user.totalStudyTime,
+    perfectExercises: user.perfectExercises,
+    activeCourse: user.enrollments[0]?.course?.title || "Nenhum curso ativo",
+  }));
+});

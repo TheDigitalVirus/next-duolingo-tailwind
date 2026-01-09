@@ -291,20 +291,6 @@ html {
   body {
     @apply bg-background text-foreground;
   }
-
-  /* Estilo para botões no estilo Duolingo */
-  .btn-duolingo {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    font-family: var(--font-family-din-round);
-    font-weight: 700;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    user-select: none;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-  }
 }
 
 /* Responsividade específica do Duolingo */

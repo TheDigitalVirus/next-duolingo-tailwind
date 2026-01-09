@@ -4,7 +4,11 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import prisma from "@/lib/prisma";
-import { UserStatus, SubscriptionTier, UserRole as PrismaUserRole } from "@prisma/client";
+import {
+  UserStatus,
+  SubscriptionTier,
+  UserRole as PrismaUserRole,
+} from "@prisma/client";
 
 const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -31,8 +35,17 @@ const authOptions: NextAuthOptions = {
           include: {
             role: true,
             avatar: true,
-            userProgress: true,
             userSubscription: true,
+            enrollments: {
+              where: {
+                isActive: true,
+                status: "ACTIVE",
+              },
+              include: {
+                course: true,
+              },
+              take: 1,
+            },
           },
         });
 
@@ -50,7 +63,8 @@ const authOptions: NextAuthOptions = {
           throw new Error(
             JSON.stringify({
               code: 401,
-              message: "This account uses social login. Please sign in with your social provider.",
+              message:
+                "This account uses social login. Please sign in with your social provider.",
             })
           );
         }
@@ -93,7 +107,8 @@ const authOptions: NextAuthOptions = {
           image: user.avatar?.url || null,
           role: user.role,
           status: user.status,
-          subscriptionTier: user.userSubscription?.tier || SubscriptionTier.FREE,
+          subscriptionTier:
+            user.userSubscription?.tier || SubscriptionTier.FREE,
           xp: user.xp,
           streak: user.streak,
           gems: user.gems,
@@ -101,6 +116,18 @@ const authOptions: NextAuthOptions = {
           emailVerified: user.emailVerifiedAt,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
+          // User progress fields from User model
+          hearts: user.hearts,
+          totalPoints: user.totalPoints,
+          level: user.level,
+          totalStudyTime: user.totalStudyTime,
+          dailyStudyTime: user.dailyStudyTime,
+          perfectExercises: user.perfectExercises,
+          currentStreak: user.currentStreak,
+          longestStreak: user.longestStreak,
+          // Active enrollment
+          activeCourseId: user.enrollments[0]?.courseId || null,
+          activeCourseTitle: user.enrollments[0]?.course?.title || null,
         };
       },
     }),
@@ -114,8 +141,17 @@ const authOptions: NextAuthOptions = {
           include: {
             role: true,
             avatar: true,
-            userProgress: true,
             userSubscription: true,
+            enrollments: {
+              where: {
+                isActive: true,
+                status: "ACTIVE",
+              },
+              include: {
+                course: true,
+              },
+              take: 1,
+            },
           },
         });
 
@@ -136,7 +172,8 @@ const authOptions: NextAuthOptions = {
             image: existingUser.avatar?.url || null,
             role: existingUser.role,
             status: existingUser.status,
-            subscriptionTier: existingUser.userSubscription?.tier || SubscriptionTier.FREE,
+            subscriptionTier:
+              existingUser.userSubscription?.tier || SubscriptionTier.FREE,
             xp: existingUser.xp,
             streak: existingUser.streak,
             gems: existingUser.gems,
@@ -144,53 +181,64 @@ const authOptions: NextAuthOptions = {
             emailVerified: existingUser.emailVerifiedAt,
             createdAt: existingUser.createdAt,
             updatedAt: existingUser.updatedAt,
+            hearts: existingUser.hearts,
+            totalPoints: existingUser.totalPoints,
+            level: existingUser.level,
+            totalStudyTime: existingUser.totalStudyTime,
+            dailyStudyTime: existingUser.dailyStudyTime,
+            perfectExercises: existingUser.perfectExercises,
+            currentStreak: existingUser.currentStreak,
+            longestStreak: existingUser.longestStreak,
+            activeCourseId: existingUser.enrollments[0]?.courseId || null,
+            activeCourseTitle:
+              existingUser.enrollments[0]?.course?.title || null,
           };
         }
 
-        // Get or create USER role
-        let userRole = await prisma.userRole.findUnique({
-          where: { name: "USER" },
+        // Get or create STUDENT role (not USER, as per our schema)
+        let studentRole = await prisma.userRole.findUnique({
+          where: { name: "STUDENT" },
         });
 
-        if (!userRole) {
-          userRole = await prisma.userRole.create({
+        if (!studentRole) {
+          studentRole = await prisma.userRole.create({
             data: {
-              name: "USER",
-              description: "Regular user",
+              name: "STUDENT",
+              description: "Default student role",
             },
           });
         }
 
-        // Create a new user with default values
+        // Find a default course to enroll the user in
+        const defaultCourse = await prisma.course.findFirst({
+          where: {
+            isPublic: true,
+            category: "LANGUAGE",
+            level: "BEGINNER",
+          },
+          orderBy: { id: "asc" },
+        });
+
+        // Create a new user with default values according to new schema
         const newUser = await prisma.user.create({
           data: {
             email: profile.email,
             name: profile.name,
-            roleId: userRole.id,
+            roleId: studentRole.id,
             status: UserStatus.ACTIVE,
             xp: 0,
             streak: 0,
             gems: 0,
+            hearts: 5,
+            totalPoints: 0,
+            level: 1,
+            totalStudyTime: 0,
+            dailyStudyTime: 0,
+            perfectExercises: 0,
+            currentStreak: 0,
+            longestStreak: 0,
             lastActiveAt: new Date(),
             emailVerifiedAt: new Date(),
-            // Create default user progress
-            userProgress: {
-              create: {
-                userName: profile.name || "User",
-                userImageSrc: "/mascot.svg",
-                hearts: 5,
-                points: 0,
-                level: 1,
-                completedLessons: [],
-                completedExercises: [],
-                totalStudyTime: 0,
-                dailyStudyTime: 0,
-                perfectExercises: 0,
-                currentStreak: 0,
-                longestStreak: 0,
-                lastActivityAt: new Date(),
-              },
-            },
             // Create default subscription
             userSubscription: {
               create: {
@@ -200,10 +248,55 @@ const authOptions: NextAuthOptions = {
           },
           include: {
             role: true,
-            userProgress: true,
             userSubscription: true,
           },
         });
+
+        // Enroll user in default course if available
+        let activeCourseId = null;
+        let activeCourseTitle = null;
+
+        if (defaultCourse) {
+          // Get first lesson of the course
+          const firstLesson = await prisma.lesson.findFirst({
+            where: {
+              unit: {
+                courseId: defaultCourse.id,
+              },
+            },
+            orderBy: {
+              order: "asc",
+            },
+            include: {
+              unit: true,
+            },
+          });
+
+          // Create enrollment
+          const enrollment = await prisma.userEnrollment.create({
+            data: {
+              userId: newUser.id,
+              courseId: defaultCourse.id,
+              status: "ACTIVE",
+              isActive: true,
+              progressPercent: 0,
+              completedLessons: [],
+              completedChallenges: [],
+              coursePoints: 0,
+              courseHearts: 5,
+              perfectChallenges: 0,
+              totalTimeSpent: 0,
+              enrolledAt: new Date(),
+              startedAt: new Date(),
+              lastAccessedAt: new Date(),
+              currentUnitId: firstLesson?.unitId,
+              currentLessonId: firstLesson?.id,
+            },
+          });
+
+          activeCourseId = defaultCourse.id;
+          activeCourseTitle = defaultCourse.title;
+        }
 
         return {
           id: newUser.id,
@@ -212,7 +305,8 @@ const authOptions: NextAuthOptions = {
           image: null,
           role: newUser.role,
           status: newUser.status,
-          subscriptionTier: newUser.userSubscription?.tier || SubscriptionTier.FREE,
+          subscriptionTier:
+            newUser.userSubscription?.tier || SubscriptionTier.FREE,
           xp: newUser.xp,
           streak: newUser.streak,
           gems: newUser.gems,
@@ -220,6 +314,16 @@ const authOptions: NextAuthOptions = {
           emailVerified: newUser.emailVerifiedAt,
           createdAt: newUser.createdAt,
           updatedAt: newUser.updatedAt,
+          hearts: newUser.hearts,
+          totalPoints: newUser.totalPoints,
+          level: newUser.level,
+          totalStudyTime: newUser.totalStudyTime,
+          dailyStudyTime: newUser.dailyStudyTime,
+          perfectExercises: newUser.perfectExercises,
+          currentStreak: newUser.currentStreak,
+          longestStreak: newUser.longestStreak,
+          activeCourseId,
+          activeCourseTitle,
         };
       },
     }),
@@ -249,6 +353,20 @@ const authOptions: NextAuthOptions = {
         token.emailVerified = user.emailVerified;
         token.createdAt = user.createdAt;
         token.updatedAt = user.updatedAt;
+
+        // New user progress fields
+        token.hearts = user.hearts;
+        token.totalPoints = user.totalPoints;
+        token.level = user.level;
+        token.totalStudyTime = user.totalStudyTime;
+        token.dailyStudyTime = user.dailyStudyTime;
+        token.perfectExercises = user.perfectExercises;
+        token.currentStreak = user.currentStreak;
+        token.longestStreak = user.longestStreak;
+
+        // Active enrollment info
+        token.activeCourseId = user.activeCourseId;
+        token.activeCourseTitle = user.activeCourseTitle;
       }
 
       // Update lastActiveAt in database periodically
@@ -285,7 +403,8 @@ const authOptions: NextAuthOptions = {
         session.user.image = token.image as string;
         session.user.role = token.role as PrismaUserRole;
         session.user.status = token.status as UserStatus;
-        session.user.subscriptionTier = token.subscriptionTier as SubscriptionTier;
+        session.user.subscriptionTier =
+        token.subscriptionTier as SubscriptionTier;
         session.user.xp = token.xp as number;
         session.user.streak = token.streak as number;
         session.user.gems = token.gems as number;
@@ -293,12 +412,28 @@ const authOptions: NextAuthOptions = {
         session.user.emailVerified = token.emailVerified as Date;
         session.user.createdAt = token.createdAt as Date;
         session.user.updatedAt = token.updatedAt as Date;
+
+        // New user progress fields
+        session.user.hearts = token.hearts as number;
+        session.user.totalPoints = token.totalPoints as number;
+        session.user.level = token.level as number;
+        session.user.totalStudyTime = token.totalStudyTime as number;
+        session.user.dailyStudyTime = token.dailyStudyTime as number;
+        session.user.perfectExercises = token.perfectExercises as number;
+        session.user.currentStreak = token.currentStreak as number;
+        session.user.longestStreak = token.longestStreak as number;
+
+        // Active enrollment info
+        session.user.activeCourseId = token.activeCourseId as number | null;
+        session.user.activeCourseTitle = token.activeCourseTitle as
+          | string
+          | null;
       }
       return session;
     },
   },
   pages: {
-    signIn: "/home"
+    signIn: "/home",
   },
 };
 

@@ -1,14 +1,19 @@
-import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+// app/api/courses/route.ts
+import { NextResponse } from 'next/server';
+import { getCoursesWithEnrollmentCountOptimized } from '@/lib/db/queries';
 
-export const GET = async () => {
+export async function GET(request: Request) {
   try {
-    const data = await prisma.course.findMany({
-      orderBy: { id: "asc" }
-    });
-    return NextResponse.json(data);
+    const { searchParams } = new URL(request.url);
+    const sourceLanguage = searchParams.get('sourceLanguage') || undefined;
+    
+    const courses = await getCoursesWithEnrollmentCountOptimized(sourceLanguage);
+    return NextResponse.json(courses);
   } catch (error) {
-    console.error("Error fetching courses:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    console.error('Error fetching courses:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch courses' },
+      { status: 500 }
+    );
   }
-};
+}
