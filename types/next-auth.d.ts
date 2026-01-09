@@ -1,6 +1,6 @@
 import 'next-auth';
 import 'next-auth/jwt';
-import { UserRole, UserStatus, SubscriptionTier } from '@prisma/client';
+import { UserRole, UserStatus, SubscriptionTier, UserEnrollment } from '@prisma/client';
 
 // Extend built-in types
 declare module "next-auth" {
@@ -17,6 +17,7 @@ declare module "next-auth" {
     gems: number;
     lastActiveAt?: Date | null;
     emailVerified?: Date | null;
+    enrollments?: UserEnrollment[];
     createdAt: Date;
     updatedAt: Date;
     hearts: number;
@@ -45,6 +46,7 @@ declare module "next-auth" {
       gems: number;
       lastActiveAt?: Date | null;
       emailVerified?: Date | null;
+      enrollments?: UserEnrollment[];
       createdAt: Date;
       updatedAt: Date;
       hearts: number;

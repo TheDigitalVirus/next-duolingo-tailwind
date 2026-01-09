@@ -8,7 +8,7 @@ import authOptions from "../../auth/[...nextauth]/auth-options";
 const progressUpdateSchema = z.object({
   level: z.nativeEnum(CourseLevel).optional(),
   recommendedUnits: z.array(z.number()).optional(),
-  courseId: z.number().optional(),
+  courseId: z.number(),
 });
 
 export async function PATCH(request: Request) {
@@ -24,31 +24,66 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const validatedData = progressUpdateSchema.parse(body);
 
+    const { courseId, level, recommendedUnits } = validatedData;
+
     // Buscar o questionário do usuário para informações adicionais
     const userQuestionnaireData = await prisma.userQuestionnaire.findUnique({
       where: { userId },
     });
 
-    const updateData: any = {};
+    // Buscar o curso para verificar se existe
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+    });
 
-    // Se foi fornecido um courseId, atualizar o curso ativo
-    if (validatedData.courseId !== undefined) {
-      updateData.activeCourseId = validatedData.courseId;
+    if (!course) {
+      return new NextResponse("Course not found", { status: 404 });
     }
 
-    // Se foi fornecido um nível, podemos ajustar pontos iniciais baseados no nível
-    if (validatedData.level) {
-      // Ajustar pontos iniciais baseados no nível
-      const initialPoints = getInitialPointsByLevel(validatedData.level);
-      updateData.points = initialPoints;
+    // Buscar a primeira unidade e lição do curso para inicializar o progresso
+    const firstUnit = await prisma.unit.findFirst({
+      where: { courseId },
+      orderBy: { order: 'asc' },
+    });
+
+    const firstLesson = firstUnit ? await prisma.lesson.findFirst({
+      where: { unitId: firstUnit.id },
+      orderBy: { order: 'asc' },
+    }) : null;
+
+    // Desativar todas as outras matrículas ativas do usuário
+    await prisma.userEnrollment.updateMany({
+      where: {
+        userId,
+        isActive: true,
+      },
+      data: {
+        isActive: false,
+      },
+    });
+
+    // Verificar se já existe uma matrícula neste curso
+    const existingEnrollment = await prisma.userEnrollment.findFirst({
+      where: {
+        userId,
+        courseId,
+      },
+    });
+
+    let enrollment;
+    let initialPoints = 0;
+
+    // Calcular pontos iniciais baseados no nível (se fornecido)
+    if (level) {
+      initialPoints = getInitialPointsByLevel(level);
     }
 
-    // Se temos dados do questionário, podemos personalizar ainda mais
+    // Ajustar pontos baseados no questionário
     if (userQuestionnaireData) {
       // Ajustar baseado na intensidade (meta diária)
       if (userQuestionnaireData.intensity === "HARD") {
         // Usuários com meta intensa podem começar com pequeno bônus
-        updateData.points = (updateData.points || 0) + 50;
+        initialPoints += 50;
       }
 
       // Ajustar baseado no foco de aprendizado
@@ -57,49 +92,70 @@ export async function PATCH(request: Request) {
         userQuestionnaireData.focus === "BUSINESS"
       ) {
         // Foco acadêmico ou de negócios - pequeno bônus adicional
-        updateData.points = (updateData.points || 0) + 25;
+        initialPoints += 25;
       }
     }
 
-    // Verificar se o userProgress existe
-    const existingProgress = await prisma.userProgress.findUnique({
-      where: { userId },
-    });
-
-    let updatedProgress;
-    if (existingProgress) {
-      // Atualizar progresso existente
-      updatedProgress = await prisma.userProgress.update({
-        where: { userId },
-        data: updateData,
-      });
-    } else {
-      // Criar novo progresso
-      updatedProgress = await prisma.userProgress.create({
+    if (existingEnrollment) {
+      // Atualizar matrícula existente
+      enrollment = await prisma.userEnrollment.update({
+        where: { id: existingEnrollment.id },
         data: {
-          userId,
-          userName: session.user.name || "User",
-          userImageSrc: session.user.image || "/mascot.svg",
-          hearts: 5,
-          points: updateData.points || 0,
-          level: 1,
-          completedLessons: [],
-          completedExercises: [],
-          totalStudyTime: 0,
-          dailyStudyTime: 0,
-          perfectExercises: 0,
-          currentStreak: 0,
-          longestStreak: 0,
-          lastActivityAt: new Date(),
-          ...updateData,
+          isActive: true,
+          status: "ACTIVE",
+          currentUnitId: firstUnit?.id || existingEnrollment.currentUnitId,
+          currentLessonId: firstLesson?.id || existingEnrollment.currentLessonId,
+          lastAccessedAt: new Date(),
         },
       });
+    } else {
+      // Criar nova matrícula
+      enrollment = await prisma.userEnrollment.create({
+        data: {
+          userId,
+          courseId,
+          isActive: true,
+          status: "ACTIVE",
+          currentUnitId: firstUnit?.id || null,
+          currentLessonId: firstLesson?.id || null,
+          courseHearts: 5,
+          coursePoints: initialPoints,
+          progressPercent: 0,
+          startedAt: new Date(),
+          lastAccessedAt: new Date(),
+        },
+      });
+
+      // Se for a primeira matrícula do usuário, dar pontos iniciais globais
+      const userEnrollmentsCount = await prisma.userEnrollment.count({
+        where: { userId },
+      });
+
+      if (userEnrollmentsCount === 1) {
+        // Primeira matrícula - dar pontos iniciais globais
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            totalPoints: initialPoints,
+            hearts: 5,
+          },
+        });
+      }
     }
+
+    // Atualizar informações do usuário
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: session.user.name,
+        lastActiveAt: new Date(),
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      progress: updatedProgress,
-      recommendedUnits: validatedData.recommendedUnits,
+      enrollment,
+      recommendedUnits: recommendedUnits || [],
     });
   } catch (error) {
     console.error("Error updating user progress:", error);
@@ -134,30 +190,197 @@ export async function GET() {
   const userId = session.user.id;
 
   try {
-    const progress = await prisma.userProgress.findUnique({
-      where: { userId },
+    // Buscar estatísticas gerais do usuário
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        totalPoints: true,
+        hearts: true,
+        level: true,
+        xp: true,
+        streak: true,
+        lastActiveAt: true,
+        gems: true,
+      },
     });
 
-    // Buscar também o questionário para informações completas
+    // Buscar matrícula ativa
+    const activeEnrollment = await prisma.userEnrollment.findFirst({
+      where: {
+        userId,
+        isActive: true,
+      },
+      include: {
+        course: {
+          include: {
+            units: {
+              include: {
+                lessons: true,
+              },
+            },
+          },
+        },
+        currentUnit: true,
+        currentLesson: true,
+      },
+    });
+
+    // Buscar todas as matrículas do usuário
+    const allEnrollments = await prisma.userEnrollment.findMany({
+      where: { userId },
+      include: {
+        course: true,
+      },
+      orderBy: {
+        lastAccessedAt: 'desc',
+      },
+    });
+
+    // Buscar o questionário
     const questionnaire = await prisma.userQuestionnaire.findUnique({
       where: { userId },
     });
 
+    // Buscar assinatura
+    const subscription = await prisma.userSubscription.findUnique({
+      where: { userId },
+    });
+
+    // Calcular progresso total do curso ativo
+    let courseProgress = null;
+    if (activeEnrollment) {
+      const totalChallenges = await prisma.challenge.count({
+        where: {
+          lesson: {
+            unit: {
+              courseId: activeEnrollment.courseId,
+            },
+          },
+        },
+      });
+
+      const completedChallenges = await prisma.challengeProgress.count({
+        where: {
+          enrollmentId: activeEnrollment.id,
+          completed: true,
+        },
+      });
+
+      courseProgress = {
+        progressPercent: totalChallenges > 0 
+          ? (completedChallenges / totalChallenges) * 100 
+          : 0,
+        completedChallenges,
+        totalChallenges,
+      };
+    }
+
     return NextResponse.json({
-      progress,
+      user,
+      activeEnrollment,
+      allEnrollments,
       questionnaire,
+      subscription,
+      courseProgress,
       // Incluir recomendações se disponíveis
       recommendations: questionnaire
         ? {
             level: questionnaire.courseLevel,
             intensity: questionnaire.intensity,
             focus: questionnaire.focus,
-            recommendedUnits: questionnaire.recommendedUnits,
+            recommendedCourses: questionnaire.recommendedCourses,
           }
         : null,
     });
   } catch (error) {
     console.error("Error fetching user progress:", error);
+    return new NextResponse("Internal server error", { status: 500 });
+  }
+}
+
+// Rota POST para criar uma nova matrícula sem ativar automaticamente
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  const userId = session.user.id;
+
+  try {
+    const body = await request.json();
+    const { courseId } = z.object({
+      courseId: z.number(),
+    }).parse(body);
+
+    // Verificar se o curso existe
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+    });
+
+    if (!course) {
+      return new NextResponse("Course not found", { status: 404 });
+    }
+
+    // Verificar se já existe matrícula neste curso
+    const existingEnrollment = await prisma.userEnrollment.findFirst({
+      where: {
+        userId,
+        courseId,
+      },
+    });
+
+    if (existingEnrollment) {
+      return NextResponse.json({
+        success: true,
+        message: "Enrollment already exists",
+        enrollment: existingEnrollment,
+      });
+    }
+
+    // Buscar a primeira unidade e lição
+    const firstUnit = await prisma.unit.findFirst({
+      where: { courseId },
+      orderBy: { order: 'asc' },
+    });
+
+    const firstLesson = firstUnit ? await prisma.lesson.findFirst({
+      where: { unitId: firstUnit.id },
+      orderBy: { order: 'asc' },
+    }) : null;
+
+    // Criar nova matrícula (não ativa por padrão)
+    const enrollment = await prisma.userEnrollment.create({
+      data: {
+        userId,
+        courseId,
+        isActive: false, // Não ativar automaticamente
+        status: "ACTIVE",
+        currentUnitId: firstUnit?.id || null,
+        currentLessonId: firstLesson?.id || null,
+        courseHearts: 5,
+        coursePoints: 0,
+        progressPercent: 0,
+        startedAt: new Date(),
+        lastAccessedAt: new Date(),
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      enrollment,
+    });
+  } catch (error) {
+    console.error("Error creating enrollment:", error);
+    
+    if (error instanceof z.ZodError) {
+      return new NextResponse("Invalid data", { status: 400 });
+    }
+
     return new NextResponse("Internal server error", { status: 500 });
   }
 }

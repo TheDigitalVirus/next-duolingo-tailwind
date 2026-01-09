@@ -1,4 +1,3 @@
-// use server
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -6,65 +5,65 @@ import { getServerSession } from "next-auth/next";
 import authOptions from "@/app/api/auth/[...nextauth]/auth-options";
 import prisma from "@/lib/prisma";
 
-/**
- * Upsert do progresso do desafio (Prisma + next-auth)
- * - cria um ChallengeProgress se não existir
- * - marca como completed se já existir (prática)
- * - atualiza UserProgress (hearts/points)
- */
 export const upsertChallengeProgress = async (challengeId: number) => {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 
   if (!userId) throw new Error("Unauthorized.");
 
-  // buscar progresso do usuário e assinatura
-  const [currentUserProgress, userSubscription] = await Promise.all([
-    prisma.userProgress.findUnique({ where: { userId } }),
-    prisma.userSubscription.findUnique({ where: { userId } }),
-  ]);
+  // Buscar matrícula ativa do usuário
+  const activeEnrollment = await prisma.userEnrollment.findFirst({
+    where: {
+      userId,
+      isActive: true,
+    },
+  });
 
-  if (!currentUserProgress) throw new Error("User progress not found.");
+  if (!activeEnrollment) throw new Error("No active enrollment found.");
 
-  // buscar challenge
+  // Buscar assinatura do usuário
+  const userSubscription = await prisma.userSubscription.findUnique({
+    where: { userId },
+  });
+
+  // Buscar challenge
   const challenge = await prisma.challenge.findUnique({
     where: { id: challengeId },
-    select: { id: true, lessonId: true },
+    include: {
+      lesson: true,
+    },
   });
 
   if (!challenge) throw new Error("Challenge not found.");
 
   const lessonId = challenge.lessonId;
 
-  // buscar progresso existente do challenge para este user
+  // Buscar progresso existente do challenge para esta matrícula
   const existingChallengeProgress = await prisma.challengeProgress.findFirst({
     where: {
-      userId,
+      enrollmentId: activeEnrollment.id,
       challengeId,
     },
   });
 
   const isPractice = !!existingChallengeProgress;
 
-  // determinar se assinatura está ativa
-  const now = new Date();
-  const isSubscriptionActive =
-    !!userSubscription &&
-    ((userSubscription.stripeCurrentPeriodEnd &&
-      userSubscription.stripeCurrentPeriodEnd > now) ||
-      userSubscription.tier === "PRO");
+  // Verificar se a assinatura está ativa
+  const isSubscriptionActive = userSubscription?.tier === "PRO" || 
+    (userSubscription?.stripeCurrentPeriodEnd && 
+     userSubscription.stripeCurrentPeriodEnd > new Date());
 
-  // se hearts = 0 e não é prática e sem assinatura ativa => retorna erro de hearts
+  // Se hearts do curso = 0 e não é prática e sem assinatura ativa => retorna erro
   if (
-    currentUserProgress.hearts === 0 &&
+    activeEnrollment.courseHearts === 0 &&
     !isPractice &&
     !isSubscriptionActive
   ) {
     return { error: "hearts" };
   }
 
-  // tudo em transação para consistência
   if (isPractice && existingChallengeProgress) {
+    // Atualizar desafio existente (prática)
     await prisma.$transaction([
       prisma.challengeProgress.update({
         where: { id: existingChallengeProgress.id },
@@ -76,18 +75,29 @@ export const upsertChallengeProgress = async (challengeId: number) => {
           },
         },
       }),
-      prisma.userProgress.update({
-        where: { userId },
+      // Aumentar hearts do curso (máx 5) e pontos do curso
+      prisma.userEnrollment.update({
+        where: { id: activeEnrollment.id },
         data: {
-          // aumenta hearts (máx MAX_HEARTS) e points
-          hearts: Math.min(currentUserProgress.hearts + 1, 5),
-          points: currentUserProgress.points + 10,
-          updatedAt: new Date(),
+          courseHearts: Math.min(activeEnrollment.courseHearts + 1, 5),
+          coursePoints: activeEnrollment.coursePoints + 10,
+          lastAccessedAt: new Date(),
+        },
+      }),
+      // Aumentar pontos gerais do usuário e hearts
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          totalPoints: { increment: 10 },
+          hearts: {
+            increment: 1,
+          },
+          lastActiveAt: new Date(),
         },
       }),
     ]);
 
-    // revalidate rotas
+    // Revalidate rotas
     revalidatePath("/learn");
     revalidatePath("/lesson");
     revalidatePath("/quests");
@@ -96,31 +106,79 @@ export const upsertChallengeProgress = async (challengeId: number) => {
     return;
   }
 
-  // caso normal: cria progresso do challenge e atualiza pontos (sem dar heart)
+  // Caso normal: primeiro acerto
   await prisma.$transaction([
     prisma.challengeProgress.create({
       data: {
         challengeId,
         userId,
+        enrollmentId: activeEnrollment.id,
         completed: true,
         completedAt: new Date(),
         attempts: 1,
-        // score pode ser preenchido se houver lógica
       },
     }),
-    prisma.userProgress.update({
-      where: { userId },
+    // Atualizar pontos do curso
+    prisma.userEnrollment.update({
+      where: { id: activeEnrollment.id },
       data: {
-        points: currentUserProgress.points + 10,
-        updatedAt: new Date(),
+        coursePoints: activeEnrollment.coursePoints + 10,
+        lastAccessedAt: new Date(),
+      },
+    }),
+    // Atualizar pontos gerais do usuário
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        totalPoints: { increment: 10 },
+        lastActiveAt: new Date(),
       },
     }),
   ]);
 
-  // revalidate rotas
+  // Revalidate rotas
   revalidatePath("/learn");
   revalidatePath("/lesson");
   revalidatePath("/quests");
   revalidatePath("/leaderboard");
+  revalidatePath(`/lesson/${lessonId}`);
+};
+
+// Nova função para atualizar progresso da lição/unidade
+export const updateLessonProgress = async (lessonId: number) => {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+
+  if (!userId) throw new Error("Unauthorized.");
+
+  const activeEnrollment = await prisma.userEnrollment.findFirst({
+    where: {
+      userId,
+      isActive: true,
+    },
+  });
+
+  if (!activeEnrollment) throw new Error("No active enrollment found.");
+
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    include: {
+      unit: true,
+    },
+  });
+
+  if (!lesson) throw new Error("Lesson not found.");
+
+  // Atualizar lição atual na matrícula
+  await prisma.userEnrollment.update({
+    where: { id: activeEnrollment.id },
+    data: {
+      currentLessonId: lessonId,
+      currentUnitId: lesson.unitId,
+      lastAccessedAt: new Date(),
+    },
+  });
+
+  revalidatePath("/learn");
   revalidatePath(`/lesson/${lessonId}`);
 };

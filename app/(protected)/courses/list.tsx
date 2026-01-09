@@ -7,12 +7,12 @@ import { toast } from "sonner";
 
 
 import { Card } from "./card";
-import { Course, UserProgress } from "@prisma/client";
+import { Course, UserEnrollment } from "@prisma/client";
 import { upsertUserProgress } from "@/actions/user-progress";
 
 type ListProps = {
   courses: Course[];
-  user?: UserProgress | null;
+  user?: UserEnrollment;
 };
 
 export const List = ({ courses, user }: ListProps) => {
@@ -22,7 +22,7 @@ export const List = ({ courses, user }: ListProps) => {
   const onClick = (id: number) => {
     if (pending) return;
 
-    if (id === user?.activeCourseId) return router.push("/learn");
+    if (id === user?.courseId) return router.push("/learn");
 
     startTransition(() => {
       upsertUserProgress(id).catch(() => toast.error("Something went wrong."));
@@ -39,7 +39,7 @@ export const List = ({ courses, user }: ListProps) => {
           imageSrc={course.imageSrc}
           onClick={onClick}
           disabled={pending}
-          isActive={course.id === user?.activeCourseId}
+          isActive={course.id === user?.courseId}
         />
       ))}
     </div>

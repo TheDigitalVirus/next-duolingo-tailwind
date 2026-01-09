@@ -88,8 +88,6 @@ model User {
   lastActiveAt     DateTime?  @default(now())
   gems             Int        @default(0)
 
-  // REMOVIDO: selectedCourseId (agora tem múltiplos cursos)
-
   // Relations
   role           UserRole         @relation(fields: [roleId], references: [id], onDelete: Restrict)
   avatar         Image?           @relation(fields: [avatarId], references: [id])
