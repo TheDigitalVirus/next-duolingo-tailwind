@@ -16,7 +16,7 @@ const Features2 = () => {
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-screen bg-background font-sans">
+    <div id='features2' className="min-h-screen bg-background font-sans">
       {/* Mobile Apps Section */}
       <section className="py-16 md:py-24 px-4 md:px-8 max-w-6xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-12">

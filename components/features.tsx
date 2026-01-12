@@ -83,7 +83,7 @@ const Features = () => {
   };
 
   return (
-    <div className="min-h-screen bg-muted/50 font-sans">
+    <div id='features' className="min-h-screen bg-muted/50 font-sans">
       <section className="py-12 md:py-20 px-4 md:px-8 max-w-6xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-12">
           <motion.div
