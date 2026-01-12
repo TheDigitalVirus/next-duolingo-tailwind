@@ -11,7 +11,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
 
   if (!userId) throw new Error("Unauthorized.");
 
-  // Buscar matrícula ativa do usuário
   const activeEnrollment = await prisma.userEnrollment.findFirst({
     where: {
       userId,
@@ -21,12 +20,10 @@ export const upsertChallengeProgress = async (challengeId: number) => {
 
   if (!activeEnrollment) throw new Error("No active enrollment found.");
 
-  // Buscar assinatura do usuário
   const userSubscription = await prisma.userSubscription.findUnique({
     where: { userId },
   });
 
-  // Buscar challenge
   const challenge = await prisma.challenge.findUnique({
     where: { id: challengeId },
     include: {
@@ -38,7 +35,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
 
   const lessonId = challenge.lessonId;
 
-  // Buscar progresso existente do challenge para esta matrícula
   const existingChallengeProgress = await prisma.challengeProgress.findFirst({
     where: {
       enrollmentId: activeEnrollment.id,
@@ -48,12 +44,10 @@ export const upsertChallengeProgress = async (challengeId: number) => {
 
   const isPractice = !!existingChallengeProgress;
 
-  // Verificar se a assinatura está ativa
   const isSubscriptionActive = userSubscription?.tier === "PRO" || 
     (userSubscription?.stripeCurrentPeriodEnd && 
      userSubscription.stripeCurrentPeriodEnd > new Date());
 
-  // Se hearts do curso = 0 e não é prática e sem assinatura ativa => retorna erro
   if (
     activeEnrollment.courseHearts === 0 &&
     !isPractice &&
@@ -63,7 +57,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
   }
 
   if (isPractice && existingChallengeProgress) {
-    // Atualizar desafio existente (prática)
     await prisma.$transaction([
       prisma.challengeProgress.update({
         where: { id: existingChallengeProgress.id },
@@ -75,7 +68,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
           },
         },
       }),
-      // Aumentar hearts do curso (máx 5) e pontos do curso
       prisma.userEnrollment.update({
         where: { id: activeEnrollment.id },
         data: {
@@ -84,7 +76,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
           lastAccessedAt: new Date(),
         },
       }),
-      // Aumentar pontos gerais do usuário e hearts
       prisma.user.update({
         where: { id: userId },
         data: {
@@ -97,7 +88,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
       }),
     ]);
 
-    // Revalidate rotas
     revalidatePath("/learn");
     revalidatePath("/lesson");
     revalidatePath("/quests");
@@ -106,7 +96,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
     return;
   }
 
-  // Caso normal: primeiro acerto
   await prisma.$transaction([
     prisma.challengeProgress.create({
       data: {
@@ -118,7 +107,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
         attempts: 1,
       },
     }),
-    // Atualizar pontos do curso
     prisma.userEnrollment.update({
       where: { id: activeEnrollment.id },
       data: {
@@ -126,7 +114,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
         lastAccessedAt: new Date(),
       },
     }),
-    // Atualizar pontos gerais do usuário
     prisma.user.update({
       where: { id: userId },
       data: {
@@ -135,8 +122,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
       },
     }),
   ]);
-
-  // Revalidate rotas
   revalidatePath("/learn");
   revalidatePath("/lesson");
   revalidatePath("/quests");
@@ -144,7 +129,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
   revalidatePath(`/lesson/${lessonId}`);
 };
 
-// Nova função para atualizar progresso da lição/unidade
 export const updateLessonProgress = async (lessonId: number) => {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
@@ -169,7 +153,6 @@ export const updateLessonProgress = async (lessonId: number) => {
 
   if (!lesson) throw new Error("Lesson not found.");
 
-  // Atualizar lição atual na matrícula
   await prisma.userEnrollment.update({
     where: { id: activeEnrollment.id },
     data: {

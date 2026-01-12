@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import authOptions from "../../auth/[...nextauth]/auth-options";
 
-// Função para verificar se o usuário é admin (reutilizável)
 const getIsAdmin = async () => {
   const session = await getServerSession(authOptions);
 
@@ -23,10 +22,10 @@ const getIsAdmin = async () => {
 
 export const GET = async (
   req: NextRequest,
-  { params }: { params: Promise<{ courseId: string }> } // Changed to Promise
+  { params }: { params: Promise<{ courseId: string }> }
 ) => {
   try {
-    const { courseId } = await params; // Await the params
+    const { courseId } = await params;
     const courseIdNum = parseInt(courseId);
     
     if (isNaN(courseIdNum)) {
@@ -60,7 +59,7 @@ export const GET = async (
 
 export const PUT = async (
   req: NextRequest,
-  { params }: { params: Promise<{ courseId: string }> } // Changed to Promise
+  { params }: { params: Promise<{ courseId: string }> }
 ) => {
   try {
     const isAdmin = await getIsAdmin();
@@ -68,7 +67,7 @@ export const PUT = async (
       return new NextResponse("Unauthorized.", { status: 401 });
     }
 
-    const { courseId } = await params; // Await the params
+    const { courseId } = await params;
     const courseIdNum = parseInt(courseId);
 
     if (isNaN(courseIdNum)) {
@@ -77,7 +76,6 @@ export const PUT = async (
 
     const body = await req.json();
 
-    // Verificar se o curso existe
     const existingCourse = await prisma.course.findUnique({
       where: { id: courseIdNum },
     });
@@ -109,7 +107,7 @@ export const PUT = async (
 
 export const DELETE = async (
   req: NextRequest,
-  { params }: { params: Promise<{ courseId: string }> } // Changed to Promise
+  { params }: { params: Promise<{ courseId: string }> }
 ) => {
   try {
     const isAdmin = await getIsAdmin();
@@ -117,14 +115,13 @@ export const DELETE = async (
       return new NextResponse("Unauthorized.", { status: 401 });
     }
 
-    const { courseId } = await params; // Await the params
+    const { courseId } = await params;
     const courseIdNum = parseInt(courseId);
 
     if (isNaN(courseIdNum)) {
       return new NextResponse("Invalid course ID", { status: 400 });
     }
 
-    // Verificar se o curso existe
     const existingCourse = await prisma.course.findUnique({
       where: { id: courseIdNum },
     });
@@ -141,7 +138,6 @@ export const DELETE = async (
   } catch (error) {
     console.error("Error deleting course:", error);
 
-    // Tratar erro de constraint de chave estrangeira
     if (
       error instanceof Error &&
       error.message.includes("foreign key constraint")

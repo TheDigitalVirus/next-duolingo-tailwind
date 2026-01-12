@@ -9,7 +9,8 @@ import { useLanguage } from "@/providers/i18n-provider";
 import { useTranslation } from "react-i18next";
 import { LanguageDropDown } from "@/components/languageDropDown";
 import { useTheme } from "next-themes";
-import { Sun, Moon, ChevronDown } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CourseSelection {
   id: number;
@@ -38,8 +39,8 @@ export default function SelectCoursesPage() {
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCoursesLoading, setIsCoursesLoading] = useState(true);
-  const [showMobileLanguage, setShowMobileLanguage] = useState(false);
   const router = useRouter();
+  const isMobile = useIsMobile();
   const { language } = useLanguage();
   const { t } = useTranslation();
 
@@ -109,13 +110,13 @@ export default function SelectCoursesPage() {
   return (
     <div className="min-h-screen bg-linear-to-b from-background to-muted/20 dark:from-background dark:to-muted/10 py-4 md:py-8">
       <div className="container mx-auto max-w-6xl px-3 md:px-4">
-        {/* Header para mobile */}
         <div className="md:hidden mb-6">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold text-foreground dark:text-foreground">
               {t('common.selectCourses.mobileTitle')}
             </h1>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              { isMobile && <LanguageDropDown variant="mobile-flag" /> }
               <Button
                 className="h-9 w-9 rounded-full"
                 variant="ghost"
@@ -129,28 +130,8 @@ export default function SelectCoursesPage() {
               </Button>
             </div>
           </div>
-
-          {/* Language selector mobile */}
-          <div className="relative">
-            <button
-              onClick={() => setShowMobileLanguage(!showMobileLanguage)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-card dark:bg-card border border-input dark:border-input rounded-lg cursor-pointer hover:bg-accent dark:hover:bg-accent transition-colors"
-            >
-              <span className="text-sm font-medium text-foreground dark:text-foreground">
-                {t('common.language')}: {language.name}
-              </span>
-              <ChevronDown className={`size-4 transition-transform ${showMobileLanguage ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showMobileLanguage && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-popover dark:bg-popover border border-border dark:border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                <LanguageDropDown mobileMode onClose={() => setShowMobileLanguage(false)} />
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* Header para desktop */}
         <div className="hidden md:flex mb-8 flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="mb-2 text-2xl md:text-3xl font-bold text-foreground dark:text-foreground">
@@ -245,7 +226,6 @@ export default function SelectCoursesPage() {
           </div>
         )}
 
-        {/* Botão desabilitado quando nenhum curso selecionado */}
         {!selectedCourseId && (
           <div className="text-center">
             <Button

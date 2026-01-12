@@ -209,24 +209,6 @@ const ALL_COURSES: CourseData[] = [
     estimatedHours: 41,
   },
   {
-    title: "Espanhol",
-    imageSrc: "/images/courses/es.svg",
-    description: "Aprenda espanhol do zero com lições práticas",
-    language: "pt-BR",
-    category: CourseCategory.LANGUAGE,
-    level: CourseLevel.BEGINNER,
-    estimatedHours: 48,
-  },
-  {
-    title: "Inglês",
-    imageSrc: "/images/courses/en.svg",
-    description: "Aprenda inglês do zero com lições práticas",
-    language: "pt-BR",
-    category: CourseCategory.LANGUAGE,
-    level: CourseLevel.BEGINNER,
-    estimatedHours: 50,
-  },
-  {
     title: "Francês",
     imageSrc: "/images/courses/fr.svg",
     description: "Aprenda francês do zero com lições práticas",
@@ -283,7 +265,7 @@ const ALL_COURSES: CourseData[] = [
 ];
 
 const SPANISH_COURSE_DATA: DetailedCourseData = {
-  title: "Espanhol para Iniciantes",
+  title: "Espanhol",
   imageSrc: "/images/courses/es.svg",
   description: "Aprenda espanhol do zero com lições práticas",
   language: "pt-BR",
@@ -437,7 +419,7 @@ const SPANISH_COURSE_DATA: DetailedCourseData = {
 };
 
 const ENGLISH_COURSE_DATA: DetailedCourseData = {
-  title: "Inglês para Iniciantes",
+  title: "Inglês",
   imageSrc: "/images/courses/en.svg",
   description: "Aprenda inglês do zero com lições práticas",
   language: "pt-BR",
@@ -560,7 +542,6 @@ const createCourses = async (): Promise<Array<CourseData & { id: number; isFeatu
     console.log(`   ✅ Created course: ${course.title} (${course.language})`);
   }
 
-  // Criar cursos detalhados (espanhol e inglês) - apenas se não existirem
   const detailedSpanishCourse = await prisma.course.create({
     data: {
       title: SPANISH_COURSE_DATA.title,
@@ -600,9 +581,9 @@ const createCourseStructure = async (course: CourseData & { id: number }): Promi
   let unitsData: UnitData[];
   
   // Criar estrutura detalhada apenas para cursos específicos
-  if (course.title === "Espanhol para Iniciantes" && course.language === "pt-BR") {
+  if (course.title === "Espanhol" && course.language === "pt-BR") {
     unitsData = SPANISH_COURSE_DATA.units;
-  } else if (course.title === "Inglês para Iniciantes" && course.language === "pt-BR") {
+  } else if (course.title === "Inglês" && course.language === "pt-BR") {
     unitsData = ENGLISH_COURSE_DATA.units;
   } else {
     // Estrutura mínima para outros cursos

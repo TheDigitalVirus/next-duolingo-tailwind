@@ -131,7 +131,7 @@ const Header = () => {
         'fixed top-0 left-0 right-3 z-40 transition-all duration-300',
         isScrolled ? 'bg-white/60 backdrop-blur-sm shadow-xs' : 'bg-transparent',
         !isHomeSection && isMobile ? 'border-b border-gray-200' : 'bg-transparent',
-        !isVisible && 'mt-7'
+        !isVisible && 'mt-12'
       )}
     >
       <div className={cn(

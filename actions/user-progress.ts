@@ -23,7 +23,6 @@ export const upsertUserProgress = async (courseId: number) => {
   if (!course.units.length || !course.units[0].lessons.length)
     throw new Error("Course is empty.");
 
-  // Buscar matrícula existente neste curso
   const existingEnrollment = await prisma.userEnrollment.findFirst({
     where: {
       userId,
@@ -31,7 +30,6 @@ export const upsertUserProgress = async (courseId: number) => {
     },
   });
 
-  // Primeiro, desativar todas as outras matrículas ativas do usuário
   await prisma.userEnrollment.updateMany({
     where: {
       userId,
@@ -43,7 +41,6 @@ export const upsertUserProgress = async (courseId: number) => {
   });
 
   if (existingEnrollment) {
-    // Atualizar matrícula existente
     await prisma.userEnrollment.update({
       where: { id: existingEnrollment.id },
       data: {
@@ -53,7 +50,6 @@ export const upsertUserProgress = async (courseId: number) => {
       },
     });
 
-    // Atualizar informações básicas do usuário
     await prisma.user.update({
       where: { id: userId },
       data: {
@@ -66,7 +62,6 @@ export const upsertUserProgress = async (courseId: number) => {
     redirect("/learn");
   }
 
-  // Criar nova matrícula
   const firstUnit = course.units[0];
   const firstLesson = firstUnit.lessons[0];
 
@@ -80,14 +75,12 @@ export const upsertUserProgress = async (courseId: number) => {
       currentLessonId: firstLesson.id,
       startedAt: new Date(),
       lastAccessedAt: new Date(),
-      // Inicializar com valores padrão
       courseHearts: 5,
       coursePoints: 0,
       progressPercent: 0,
     },
   });
 
-  // Atualizar informações básicas do usuário
   await prisma.user.update({
     where: { id: userId },
     data: {
@@ -107,7 +100,6 @@ export const reduceHearts = async (challengeId: number) => {
 
   const userId = session.user.id;
 
-  // Buscar matrícula ativa do usuário
   const activeEnrollment = await prisma.userEnrollment.findFirst({
     where: {
       userId,
@@ -117,7 +109,6 @@ export const reduceHearts = async (challengeId: number) => {
 
   if (!activeEnrollment) throw new Error("No active enrollment found.");
 
-  // Buscar assinatura do usuário
   const userSubscription = await prisma.userSubscription.findUnique({
     where: { userId },
   });
@@ -133,7 +124,6 @@ export const reduceHearts = async (challengeId: number) => {
 
   const lessonId = challenge.lessonId;
 
-  // Verificar se já existe progresso neste desafio (prática)
   const existingChallengeProgress = await prisma.challengeProgress.findFirst({
     where: {
       enrollmentId: activeEnrollment.id,
@@ -145,26 +135,21 @@ export const reduceHearts = async (challengeId: number) => {
 
   if (isPractice) return { error: "practice" };
 
-  // Verificar se a assinatura está ativa
   const isSubscriptionActive = userSubscription?.tier === "PRO" || 
     (userSubscription?.stripeCurrentPeriodEnd && 
      userSubscription.stripeCurrentPeriodEnd > new Date());
 
   if (isSubscriptionActive) return { error: "subscription" };
 
-  // Usar hearts específicos do curso
   if (activeEnrollment.courseHearts === 0) return { error: "hearts" };
 
-  // Reduzir hearts do curso e do usuário
   await prisma.$transaction([
-    // Reduzir hearts da matrícula (curso específico)
     prisma.userEnrollment.update({
       where: { id: activeEnrollment.id },
       data: {
         courseHearts: Math.max(activeEnrollment.courseHearts - 1, 0),
       },
     }),
-    // Reduzir hearts gerais do usuário
     prisma.user.update({
       where: { id: userId },
       data: {
@@ -189,7 +174,6 @@ export const refillHearts = async () => {
 
   const userId = session.user.id;
 
-  // Buscar matrícula ativa do usuário
   const activeEnrollment = await prisma.userEnrollment.findFirst({
     where: {
       userId,
@@ -199,7 +183,6 @@ export const refillHearts = async () => {
 
   if (!activeEnrollment) throw new Error("No active enrollment found.");
 
-  // Buscar usuário para verificar pontos
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -212,14 +195,12 @@ export const refillHearts = async () => {
   if (user.totalPoints < 10) throw new Error("Not enough points.");
 
   await prisma.$transaction([
-    // Recarregar hearts da matrícula
     prisma.userEnrollment.update({
       where: { id: activeEnrollment.id },
       data: {
         courseHearts: 5,
       },
     }),
-    // Recarregar hearts gerais do usuário
     prisma.user.update({
       where: { id: userId },
       data: {
@@ -235,7 +216,6 @@ export const refillHearts = async () => {
   revalidatePath("/leaderboard");
 };
 
-// Nova função para buscar progresso do usuário (substitui getUserProgress antigo)
 export const getUserActiveProgress = async () => {
   const session = await getServerSession(authOptions);
   

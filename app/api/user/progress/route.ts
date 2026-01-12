@@ -126,13 +126,11 @@ export async function PATCH(request: Request) {
         },
       });
 
-      // Se for a primeira matrícula do usuário, dar pontos iniciais globais
       const userEnrollmentsCount = await prisma.userEnrollment.count({
         where: { userId },
       });
 
       if (userEnrollmentsCount === 1) {
-        // Primeira matrícula - dar pontos iniciais globais
         await prisma.user.update({
           where: { id: userId },
           data: {
@@ -143,7 +141,6 @@ export async function PATCH(request: Request) {
       }
     }
 
-    // Atualizar informações do usuário
     await prisma.user.update({
       where: { id: userId },
       data: {
@@ -168,7 +165,6 @@ export async function PATCH(request: Request) {
   }
 }
 
-// Função auxiliar para determinar pontos iniciais baseados no nível
 function getInitialPointsByLevel(level: CourseLevel): number {
   const pointsMap = {
     [CourseLevel.BEGINNER]: 0,
@@ -179,7 +175,6 @@ function getInitialPointsByLevel(level: CourseLevel): number {
   return pointsMap[level] || 0;
 }
 
-// GET para obter o progresso atual do usuário
 export async function GET() {
   const session = await getServerSession(authOptions);
 
@@ -190,7 +185,6 @@ export async function GET() {
   const userId = session.user.id;
 
   try {
-    // Buscar estatísticas gerais do usuário
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -207,7 +201,6 @@ export async function GET() {
       },
     });
 
-    // Buscar matrícula ativa
     const activeEnrollment = await prisma.userEnrollment.findFirst({
       where: {
         userId,
@@ -228,7 +221,6 @@ export async function GET() {
       },
     });
 
-    // Buscar todas as matrículas do usuário
     const allEnrollments = await prisma.userEnrollment.findMany({
       where: { userId },
       include: {
@@ -239,17 +231,14 @@ export async function GET() {
       },
     });
 
-    // Buscar o questionário
     const questionnaire = await prisma.userQuestionnaire.findUnique({
       where: { userId },
     });
 
-    // Buscar assinatura
     const subscription = await prisma.userSubscription.findUnique({
       where: { userId },
     });
 
-    // Calcular progresso total do curso ativo
     let courseProgress = null;
     if (activeEnrollment) {
       const totalChallenges = await prisma.challenge.count({
@@ -285,7 +274,6 @@ export async function GET() {
       questionnaire,
       subscription,
       courseProgress,
-      // Incluir recomendações se disponíveis
       recommendations: questionnaire
         ? {
             level: questionnaire.courseLevel,

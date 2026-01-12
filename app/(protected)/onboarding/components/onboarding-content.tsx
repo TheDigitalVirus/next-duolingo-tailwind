@@ -1,7 +1,4 @@
-// components/onboarding-content.tsx
 "use client";
-
-import { Loader } from "lucide-react";
 
 import Questionnaire from "@/components/questionnaire";
 import { useQuestionnaire } from "@/hooks/useQuestionnaire";
@@ -12,19 +9,8 @@ export function OnboardingContent() {
     courseLevel,
     selectedCourse,
     handleQuestionnaireComplete,
-    isLoading,
   } = useQuestionnaire();
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-green-50 to-white p-4">
-        <div className="flex flex-col items-center gap-y-4">
-          <Loader className="h-8 w-8 animate-spin text-green-500" />
-          <p className="text-gray-600">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-green-50 to-white p-4">

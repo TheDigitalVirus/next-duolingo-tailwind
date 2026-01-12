@@ -362,7 +362,6 @@ export const getEnrolledUsersCountByCourseId = cache(async (courseId: number) =>
 });
 
 export const getCoursesWithEnrollmentCountOptimized = cache(async (sourceLanguage?: string) => {
-  // Conta usuários por curso através das matrículas
   const enrollmentCounts = await prisma.userEnrollment.groupBy({
     by: ['courseId'],
     _count: {

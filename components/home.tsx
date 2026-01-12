@@ -1,7 +1,7 @@
 // components/common.buttons.tsx
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react"; // Adicione useEffect
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
@@ -11,11 +11,46 @@ import { LoginModal } from "./modals/login-modal";
 import { SignupModal } from "./modals/signup-modal";
 import { useTranslation } from 'react-i18next';
 
+type ModalType = "login" | "signup" | null;
+
 export default function Home() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [activeModal, setActiveModal] = useState<ModalType>(null);
+  const [isChecking, setIsChecking] = useState(true); // Estado para controle de carregamento
+
+  // Verificação de redirecionamento quando a sessão carrega
+  useEffect(() => {
+    const checkUserAndRedirect = async () => {
+      if (status === "loading") return;
+      
+      if (status === "authenticated") {
+        try {
+          const response = await fetch("/api/user/questionnaire");
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.hasCompletedQuestionnaire) {
+              router.push("/learn");
+            } else {
+              router.push("/select-courses");
+            }
+          } else {
+            router.push("/learn");
+          }
+        } catch (error) {
+          console.error("Erro ao verificar questionário:", error);
+          router.push("/learn");
+        }
+      } else {
+        setIsChecking(false);
+      }
+    };
+
+    checkUserAndRedirect();
+  }, [session, status, router]);
 
   const handleGetStarted = useCallback(() => {
     session ? router.push("/learn") : setActiveModal("signup");
@@ -45,9 +80,7 @@ export default function Home() {
                 <span className="block md:inline">{t("common.buttons.title")}</span>
               </h1>
 
-              {/* _1-0oK */}
               <div className="mt-5 flex w-full max-w-82.5 flex-col gap-3 md:mt-10">
-                {/* Primary */}
                 <button
                   onClick={handleGetStarted}
                   className="h-12.5 w-full rounded-xl bg-[#58cc02] border-b-4 border-[#58a700]
@@ -58,7 +91,6 @@ export default function Home() {
                   {t("common.buttons.start_button")}
                 </button>
 
-                {/* Secondary */}
                 <button
                   onClick={() => setActiveModal("login")}
                   className="
