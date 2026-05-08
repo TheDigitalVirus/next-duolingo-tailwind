@@ -94,6 +94,42 @@ type UserEnrollmentConfig = {
   enrollments: EnrollmentConfig[];
 };
 
+
+type CourseAliasRef = "english" | "spanish" | "french" | "german";
+
+const ALIASES: Record<CourseAliasRef, string[]> = {
+  english: ["English", "Inglês"],
+  spanish: ["Spanish", "Espanhol"],
+  french: ["French", "Francês"],
+  german: ["German", "Alemão"],
+};
+
+const resolveCourseByAlias = (
+  courses: Array<CourseData & { id: number }>,
+  ref: CourseAliasRef,
+  preferredLangs: string[]
+): (CourseData & { id: number }) | null => {
+  const aliases = ALIASES[ref];
+
+  for (const lang of preferredLangs) {
+    const byTitleAndLang = courses.find(
+      (course) => aliases.includes(course.title) && course.language === lang
+    );
+
+    if (byTitleAndLang) {
+      return byTitleAndLang;
+    }
+  }
+
+  const byTitle = courses.find((course) => aliases.includes(course.title));
+
+  return byTitle ?? null;
+};
+
+const warnCourseAliasNotFound = (context: { userKey: string; courseRef: CourseAliasRef }): void => {
+  console.warn("COURSE_ALIAS_NOT_FOUND", context);
+};
+
 // ────────────────────────────────────────────────────────────────────────────────
 // DATA CONSTANTS - ATUALIZADO COM OS CURSOS DO courses_rows.json
 // ────────────────────────────────────────────────────────────────────────────────
@@ -733,78 +769,28 @@ const createUserEnrollments = async (
 }>> => {
   console.log("🎫 Creating user enrollments...");
 
-  // Buscar cursos específicos com lógica mais flexível
-  const spanishCourse = courses.find(c => 
-    (c.title.includes("Espanhol") || c.title.includes("Spanish")) && 
-    c.language === "pt-BR"
-  );
-  
-  const englishCourse = courses.find(c => 
-    (c.title.includes("Inglês") || c.title.includes("English")) && 
-    c.language === "pt-BR"
-  );
-  
-  const frenchCourse = courses.find(c => 
-    (c.title.includes("Francês") || c.title.includes("French")) && 
-    (c.language === "pt-BR" || c.language === "en")
-  );
-  
-  const germanCourse = courses.find(c => 
-    (c.title.includes("Alemão") || c.title.includes("German")) && 
-    (c.language === "pt-BR" || c.language === "en")
-  );
+  const preferredLangs = ["pt-BR", "en"];
 
-  // Se não encontrar cursos em pt-BR, usar versões em inglês
-  const spanishCourseFinal = spanishCourse || courses.find(c => c.title.includes("Spanish"));
-  const englishCourseFinal = englishCourse || courses.find(c => c.title.includes("English"));
-  const frenchCourseFinal = frenchCourse || courses.find(c => c.title.includes("French"));
-  const germanCourseFinal = germanCourse || courses.find(c => c.title.includes("German"));
+  const spanishCourse = resolveCourseByAlias(courses, "spanish", preferredLangs);
+  const englishCourse = resolveCourseByAlias(courses, "english", preferredLangs);
+  const frenchCourse = resolveCourseByAlias(courses, "french", preferredLangs);
+  const germanCourse = resolveCourseByAlias(courses, "german", preferredLangs);
 
-  if (!spanishCourseFinal || !englishCourseFinal || !frenchCourseFinal || !germanCourseFinal) {
-    console.error("❌ Cursos não encontrados:");
-    console.error(`   Espanhol: ${!!spanishCourseFinal}`);
-    console.error(`   Inglês: ${!!englishCourseFinal}`);
-    console.error(`   Francês: ${!!frenchCourseFinal}`);
-    console.error(`   Alemão: ${!!germanCourseFinal}`);
-    
-    // Usar os primeiros cursos disponíveis como fallback
-    const fallbackCourses = courses.slice(0, 4);
-    console.log("📌 Usando cursos fallback:", fallbackCourses.map(c => c.title));
-    
-    // Configuração de fallback
-    const enrollmentConfigs: UserEnrollmentConfig[] = [
-      {
-        userId: users[0].id, // Owner
-        enrollments: [
-          { course: fallbackCourses[0], isActive: true, progressPercent: 75 },
-          { course: fallbackCourses[1], isActive: false, progressPercent: 40 },
-          { course: fallbackCourses[2], isActive: false, progressPercent: 20 },
-        ],
-      },
-      {
-        userId: users[1].id, // Admin
-        enrollments: [
-          { course: fallbackCourses[1], isActive: true, progressPercent: 60 },
-          { course: fallbackCourses[0], isActive: false, progressPercent: 30 },
-        ],
-      },
-      {
-        userId: users[2].id, // Student 1
-        enrollments: [
-          { course: fallbackCourses[0], isActive: true, progressPercent: 45 },
-          { course: fallbackCourses[3], isActive: false, progressPercent: 10 },
-        ],
-      },
-      {
-        userId: users[3].id, // Student 2
-        enrollments: [
-          { course: fallbackCourses[2], isActive: true, progressPercent: 25 },
-          { course: fallbackCourses[1], isActive: false, progressPercent: 15 },
-        ],
-      },
-    ];
+  const requiredCourses = [
+    { userKey: "seed-owner", courseRef: "english" as const, course: englishCourse },
+    { userKey: "seed-owner", courseRef: "spanish" as const, course: spanishCourse },
+    { userKey: "seed-owner", courseRef: "french" as const, course: frenchCourse },
+    { userKey: "seed-owner", courseRef: "german" as const, course: germanCourse },
+  ];
 
-    return await createEnrollmentsFromConfig(enrollmentConfigs);
+  for (const item of requiredCourses) {
+    if (!item.course) {
+      warnCourseAliasNotFound({ userKey: item.userKey, courseRef: item.courseRef });
+    }
+  }
+
+  if (!spanishCourse || !englishCourse || !frenchCourse || !germanCourse) {
+    throw new Error("Required course aliases were not found for enrollment seeding.");
   }
 
   // Configuração original com cursos encontrados
@@ -812,30 +798,30 @@ const createUserEnrollments = async (
     {
       userId: users[0].id, // Owner
       enrollments: [
-        { course: englishCourseFinal, isActive: true, progressPercent: 75 },
-        { course: spanishCourseFinal, isActive: false, progressPercent: 40 },
-        { course: frenchCourseFinal, isActive: false, progressPercent: 20 },
+        { course: englishCourse, isActive: true, progressPercent: 75 },
+        { course: spanishCourse, isActive: false, progressPercent: 40 },
+        { course: frenchCourse, isActive: false, progressPercent: 20 },
       ],
     },
     {
       userId: users[1].id, // Admin
       enrollments: [
-        { course: spanishCourseFinal, isActive: true, progressPercent: 60 },
-        { course: englishCourseFinal, isActive: false, progressPercent: 30 },
+        { course: spanishCourse, isActive: true, progressPercent: 60 },
+        { course: englishCourse, isActive: false, progressPercent: 30 },
       ],
     },
     {
       userId: users[2].id, // Student 1
       enrollments: [
-        { course: englishCourseFinal, isActive: true, progressPercent: 45 },
-        { course: germanCourseFinal, isActive: false, progressPercent: 10 },
+        { course: englishCourse, isActive: true, progressPercent: 45 },
+        { course: germanCourse, isActive: false, progressPercent: 10 },
       ],
     },
     {
       userId: users[3].id, // Student 2
       enrollments: [
-        { course: frenchCourseFinal, isActive: true, progressPercent: 25 },
-        { course: spanishCourseFinal, isActive: false, progressPercent: 15 },
+        { course: frenchCourse, isActive: true, progressPercent: 25 },
+        { course: spanishCourse, isActive: false, progressPercent: 15 },
       ],
     },
   ];
@@ -1009,52 +995,17 @@ const createUserQuestionnaires = async (
 ): Promise<void> => {
   console.log("📝 Creating user questionnaires...");
 
-  const spanishCourse = courses.find(c => 
-    (c.title.includes("Espanhol") || c.title.includes("Spanish")) && 
-    c.language === "pt-BR"
-  );
-  
-  const englishCourse = courses.find(c => 
-    (c.title.includes("Inglês") || c.title.includes("English")) && 
-    c.language === "pt-BR"
-  );
+  const preferredLangs = ["pt-BR", "en"];
+  const spanishCourse = resolveCourseByAlias(courses, "spanish", preferredLangs);
+  const englishCourse = resolveCourseByAlias(courses, "english", preferredLangs);
 
-  if (!spanishCourse || !englishCourse) {
-    console.log("⚠️  Using fallback courses for questionnaires");
-    // Usar os primeiros 2 cursos como fallback
-    const [course1, course2] = courses.slice(0, 2);
-    
-    await prisma.userQuestionnaire.create({
-      data: {
-        userId: users[2].id,
-        discoverySource: "friend",
-        learningGoal: "Become fluent for work",
-        languageLevel: "beginner",
-        dailyGoal: "30 minutes",
-        intensity: Intensity.REGULAR,
-        focus: Focus.BUSINESS,
-        selectedCourseId: course1.id,
-        selectedCourseTitle: course1.title,
-        courseLevel: CourseLevel.BEGINNER,
-        recommendedCourses: [course1.id, course2.id],
-      },
-    });
+  if (!englishCourse) {
+    warnCourseAliasNotFound({ userKey: users[2].id, courseRef: "english" });
+    return;
+  }
 
-    await prisma.userQuestionnaire.create({
-      data: {
-        userId: users[3].id,
-        discoverySource: "online",
-        learningGoal: "Learn for travel",
-        languageLevel: "beginner",
-        dailyGoal: "20 minutes",
-        intensity: Intensity.CASUAL,
-        focus: Focus.TRAVEL,
-        selectedCourseId: course2.id,
-        selectedCourseTitle: course2.title,
-        courseLevel: CourseLevel.BEGINNER,
-        recommendedCourses: [course2.id],
-      },
-    });
+  if (!spanishCourse) {
+    warnCourseAliasNotFound({ userKey: users[3].id, courseRef: "spanish" });
     return;
   }
 
