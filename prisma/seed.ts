@@ -83,6 +83,21 @@ type DetailedCourseData = {
   units: UnitData[];
 };
 
+type CourseStructureMode = "DETAILED" | "MINIMAL";
+
+type CourseCatalogEntry = {
+  title: string;
+  language: string;
+  structure: CourseStructureMode;
+};
+
+type StructureCounters = {
+  units: number;
+  lessons: number;
+  challenges: number;
+  options: number;
+};
+
 type EnrollmentConfig = {
   course: CourseData & { id: number };
   isActive: boolean;
@@ -504,6 +519,49 @@ const ENGLISH_COURSE_DATA: DetailedCourseData = {
   ],
 };
 
+const COURSE_CATALOG: CourseCatalogEntry[] = [
+  { title: SPANISH_COURSE_DATA.title, language: SPANISH_COURSE_DATA.language, structure: "DETAILED" },
+  { title: ENGLISH_COURSE_DATA.title, language: ENGLISH_COURSE_DATA.language, structure: "DETAILED" },
+];
+
+const COURSE_BLUEPRINTS: Record<string, UnitData[]> = {
+  [`${SPANISH_COURSE_DATA.title}|${SPANISH_COURSE_DATA.language}`]: SPANISH_COURSE_DATA.units,
+  [`${ENGLISH_COURSE_DATA.title}|${ENGLISH_COURSE_DATA.language}`]: ENGLISH_COURSE_DATA.units,
+};
+
+const buildMinimalUnits = (courseTitle: string): UnitData[] => {
+  const courseName = courseTitle.split(" ")[0];
+
+  return [
+    {
+      title: "Introdução",
+      description: `Introdução ao curso de ${courseName}`,
+      order: 1,
+      estimatedHours: 2,
+      lessons: [
+        {
+          title: "Bem-vindo",
+          description: `Bem-vindo ao curso de ${courseName}`,
+          order: 1,
+          estimatedMinutes: 15,
+          challenges: [
+            {
+              type: ChallengeType.SELECT,
+              question: `Você está pronto para aprender ${courseName}?`,
+              order: 1,
+              difficulty: DifficultyLevel.EASY,
+              options: [
+                { text: "Sim", correct: true },
+                { text: "Não", correct: false },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+};
+
 type DeletionOrder = Array<{
   model: string;
   method: () => Promise<{ count: number }>;
@@ -611,51 +669,25 @@ const createCourses = async (): Promise<Array<CourseData & { id: number; isFeatu
   return createdCourses;
 };
 
-const createCourseStructure = async (course: CourseData & { id: number }): Promise<void> => {
+const createCourseStructure = async (
+  course: CourseData & { id: number },
+  courseStructureByKey: Map<string, CourseCatalogEntry>
+): Promise<StructureCounters> => {
   console.log(`   🏗️ Building structure for: ${course.title}`);
-  
-  let unitsData: UnitData[];
-  
-  // Criar estrutura detalhada apenas para cursos específicos
-  if (course.title === "Espanhol" && course.language === "pt-BR") {
-    unitsData = SPANISH_COURSE_DATA.units;
-  } else if (course.title === "Inglês" && course.language === "pt-BR") {
-    unitsData = ENGLISH_COURSE_DATA.units;
-  } else {
-    // Estrutura mínima para outros cursos
-    const courseName = course.title.split(' ')[0]; // Pega a primeira palavra do título
-    
-    unitsData = [
-      {
-        title: "Introdução",
-        description: `Introdução ao curso de ${courseName}`,
-        order: 1,
-        estimatedHours: 2,
-        lessons: [
-          {
-            title: "Bem-vindo",
-            description: `Bem-vindo ao curso de ${courseName}`,
-            order: 1,
-            estimatedMinutes: 15,
-            challenges: [
-              {
-                type: ChallengeType.SELECT,
-                question: `Você está pronto para aprender ${courseName}?`,
-                order: 1,
-                difficulty: DifficultyLevel.EASY,
-                options: [
-                  { text: "Sim", correct: true },
-                  { text: "Não", correct: false },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ];
+  const courseKey = `${course.title}|${course.language ?? "null"}`;
+  const structureConfig = courseStructureByKey.get(courseKey);
+  const blueprint = COURSE_BLUEPRINTS[courseKey];
+  const shouldUseDetailed = structureConfig?.structure === "DETAILED";
+  const unitsData = shouldUseDetailed && blueprint ? blueprint : buildMinimalUnits(course.title);
+
+  if (shouldUseDetailed && !blueprint) {
+    console.warn("BLUEPRINT_MISSING", { courseKey, title: course.title, language: course.language });
   }
 
+  const counters: StructureCounters = { units: 0, lessons: 0, challenges: 0, options: 0 };
+
   for (const unitData of unitsData) {
+    counters.units += 1;
     const unit = await prisma.unit.create({
       data: {
         title: unitData.title,
@@ -668,6 +700,7 @@ const createCourseStructure = async (course: CourseData & { id: number }): Promi
     });
 
     for (const lessonData of unitData.lessons) {
+      counters.lessons += 1;
       const lesson = await prisma.lesson.create({
         data: {
           title: lessonData.title,
@@ -680,6 +713,7 @@ const createCourseStructure = async (course: CourseData & { id: number }): Promi
       });
 
       for (const challengeData of lessonData.challenges) {
+        counters.challenges += 1;
         const challenge = await prisma.challenge.create({
           data: {
             lessonId: lesson.id,
@@ -692,6 +726,7 @@ const createCourseStructure = async (course: CourseData & { id: number }): Promi
 
         // Create challenge options
         for (const optionData of challengeData.options) {
+          counters.options += 1;
           await prisma.challengeOption.create({
             data: {
               challengeId: challenge.id,
@@ -705,6 +740,8 @@ const createCourseStructure = async (course: CourseData & { id: number }): Promi
       }
     }
   }
+
+  return counters;
 };
 
 const createUsers = async (roles: Record<string, { id: string; name: string; description: string | null }>): Promise<Array<{
@@ -1095,9 +1132,19 @@ async function main(): Promise<void> {
 
     // Step 4: Build course structures
     console.log("🏗️ Building course structures...");
+    const courseStructureByKey = new Map(
+      COURSE_CATALOG.map((entry) => [`${entry.title}|${entry.language}`, entry])
+    );
+    const structureTotals: StructureCounters = { units: 0, lessons: 0, challenges: 0, options: 0 };
+
     for (const course of courses) {
-      await createCourseStructure(course);
+      const counters = await createCourseStructure(course, courseStructureByKey);
+      structureTotals.units += counters.units;
+      structureTotals.lessons += counters.lessons;
+      structureTotals.challenges += counters.challenges;
+      structureTotals.options += counters.options;
     }
+    console.log("📊 Structure summary:", structureTotals);
     console.log("=".repeat(50));
 
     // Step 5: Create users
