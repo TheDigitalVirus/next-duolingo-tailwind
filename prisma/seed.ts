@@ -4,15 +4,17 @@ import {
   CourseCategory,
   CourseLevel,
   DifficultyLevel,
-  SubscriptionTier,
-  Intensity,
-  Focus,
   UserStatus,
   EnrollmentStatus
 } from "@prisma/client";
 import { hash } from "bcrypt";
 import { faker } from "@faker-js/faker";
 import prisma from "@/lib/prisma";
+import { SUBSCRIPTIONS_PLAN, type SeedUserKey } from "./seed/data/subscriptions.data";
+import {
+  QUESTIONNAIRE_PLANS,
+  type CourseAliasRef,
+} from "./seed/data/questionnaire-plans.data";
 
 // ────────────────────────────────────────────────────────────────────────────────
 // TYPE DEFINITIONS
@@ -110,8 +112,6 @@ type UserEnrollmentConfig = {
 };
 
 
-type CourseAliasRef = "english" | "spanish" | "french" | "german";
-
 const ALIASES: Record<CourseAliasRef, string[]> = {
   english: ["English", "Inglês"],
   spanish: ["Spanish", "Espanhol"],
@@ -144,6 +144,13 @@ const resolveCourseByAlias = (
 const warnCourseAliasNotFound = (context: { userKey: string; courseRef: CourseAliasRef }): void => {
   console.warn("COURSE_ALIAS_NOT_FOUND", context);
 };
+
+const getDemoUsersByKey = (users: Array<{ id: string }>): Record<SeedUserKey, { id: string }> => ({
+  owner: users[0],
+  admin: users[1],
+  student1: users[2],
+  student2: users[3],
+});
 
 // ────────────────────────────────────────────────────────────────────────────────
 // DATA CONSTANTS - ATUALIZADO COM OS CURSOS DO courses_rows.json
@@ -991,39 +998,20 @@ const createChallengeProgress = async (
 
 const createUserSubscriptions = async (users: Array<{ id: string }>): Promise<void> => {
   console.log("💰 Creating user subscriptions...");
+  const usersByKey = getDemoUsersByKey(users);
 
-  // Create PRO subscription for owner
-  await prisma.userSubscription.create({
-    data: {
-      userId: users[0].id,
-      tier: SubscriptionTier.PRO,
-      stripeCurrentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
-  });
-
-  // Create PRO subscription for admin
-  await prisma.userSubscription.create({
-    data: {
-      userId: users[1].id,
-      tier: SubscriptionTier.PRO,
-      stripeCurrentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
-  });
-
-  // Students have FREE tier (default)
-  await prisma.userSubscription.create({
-    data: {
-      userId: users[2].id,
-      tier: SubscriptionTier.FREE,
-    },
-  });
-
-  await prisma.userSubscription.create({
-    data: {
-      userId: users[3].id,
-      tier: SubscriptionTier.FREE,
-    },
-  });
+  for (const subscriptionPlan of SUBSCRIPTIONS_PLAN) {
+    const isPaidTier = subscriptionPlan.tier !== "FREE";
+    await prisma.userSubscription.create({
+      data: {
+        userId: usersByKey[subscriptionPlan.userKey].id,
+        tier: subscriptionPlan.tier,
+        stripeCurrentPeriodEnd: isPaidTier
+          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          : null,
+      },
+    });
+  }
 };
 
 const createUserQuestionnaires = async (
@@ -1031,54 +1019,36 @@ const createUserQuestionnaires = async (
   courses: Array<CourseData & { id: number }>
 ): Promise<void> => {
   console.log("📝 Creating user questionnaires...");
+  const usersByKey = getDemoUsersByKey(users);
 
   const preferredLangs = ["pt-BR", "en"];
-  const spanishCourse = resolveCourseByAlias(courses, "spanish", preferredLangs);
-  const englishCourse = resolveCourseByAlias(courses, "english", preferredLangs);
 
-  if (!englishCourse) {
-    warnCourseAliasNotFound({ userKey: users[2].id, courseRef: "english" });
-    return;
+  const resolveCourseOrFallback = (userKey: SeedUserKey, courseRef: CourseAliasRef) => {
+    const resolved = resolveCourseByAlias(courses, courseRef, preferredLangs);
+    if (resolved) return resolved;
+    warnCourseAliasNotFound({ userKey, courseRef });
+    return courses[0];
+  };
+
+  for (const questionnairePlan of QUESTIONNAIRE_PLANS) {
+    const selectedCourse = resolveCourseOrFallback(
+      questionnairePlan.userKey,
+      questionnairePlan.selectedCourseAlias
+    );
+    const recommendedCourses = questionnairePlan.recommendedCourseAliases.map((courseAlias) =>
+      resolveCourseOrFallback(questionnairePlan.userKey, courseAlias).id
+    );
+
+    await prisma.userQuestionnaire.create({
+      data: {
+        userId: usersByKey[questionnairePlan.userKey].id,
+        ...questionnairePlan.payload,
+        selectedCourseId: selectedCourse.id,
+        selectedCourseTitle: selectedCourse.title,
+        recommendedCourses,
+      },
+    });
   }
-
-  if (!spanishCourse) {
-    warnCourseAliasNotFound({ userKey: users[3].id, courseRef: "spanish" });
-    return;
-  }
-
-  // Questionnaire for student1
-  await prisma.userQuestionnaire.create({
-    data: {
-      userId: users[2].id,
-      discoverySource: "friend",
-      learningGoal: "Become fluent in English for work",
-      languageLevel: "beginner",
-      dailyGoal: "30 minutes",
-      intensity: Intensity.REGULAR,
-      focus: Focus.BUSINESS,
-      selectedCourseId: englishCourse.id,
-      selectedCourseTitle: englishCourse.title,
-      courseLevel: CourseLevel.BEGINNER,
-      recommendedCourses: [englishCourse.id, spanishCourse.id],
-    },
-  });
-
-  // Questionnaire for student2
-  await prisma.userQuestionnaire.create({
-    data: {
-      userId: users[3].id,
-      discoverySource: "online",
-      learningGoal: "Learn Spanish for travel",
-      languageLevel: "beginner",
-      dailyGoal: "20 minutes",
-      intensity: Intensity.CASUAL,
-      focus: Focus.TRAVEL,
-      selectedCourseId: spanishCourse.id,
-      selectedCourseTitle: spanishCourse.title,
-      courseLevel: CourseLevel.BEGINNER,
-      recommendedCourses: [spanishCourse.id],
-    },
-  });
 };
 
 const createUserAchievements = async (users: Array<{ id: string }>): Promise<void> => {
