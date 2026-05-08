@@ -574,6 +574,21 @@ type DeletionOrder = Array<{
   method: () => Promise<{ count: number }>;
 }>;
 
+
+const logSeedError = (
+  step: string,
+  entity: string,
+  error: unknown,
+  context?: Record<string, unknown>
+): void => {
+  console.error("SEED_STEP_ERROR", {
+    step,
+    entity,
+    ...(context ?? {}),
+    error: error instanceof Error ? error.message : String(error),
+  });
+};
+
 // ────────────────────────────────────────────────────────────────────────────────
 // UTILITY FUNCTIONS
 // ────────────────────────────────────────────────────────────────────────────────
@@ -615,63 +630,83 @@ const deleteAllData = async (): Promise<void> => {
 const createUserRoles = async (): Promise<Record<string, { id: string; name: string; description: string | null }>> => {
   console.log("👥 Creating user roles...");
 
-  const roles = await Promise.all(
-    USER_ROLES.map((role) => prisma.userRole.create({ data: role }))
-  );
+  try {
+    const roles = await prisma.$transaction(
+      USER_ROLES.map((role) => prisma.userRole.create({ data: role }))
+    );
 
-  return roles.reduce((acc, role) => {
-    acc[role.name] = role;
-    return acc;
-  }, {} as Record<string, typeof roles[0]>);
+    return roles.reduce((acc, role) => {
+      acc[role.name] = role;
+      return acc;
+    }, {} as Record<string, typeof roles[0]>);
+  } catch (error) {
+    logSeedError("createUserRoles", "userRole", error);
+    throw error;
+  }
 };
 
 const createCourses = async (): Promise<Array<CourseData & { id: number; isFeatured: boolean; isPublic: boolean }>> => {
   console.log("📚 Creating courses...");
 
   const createdCourses: Array<CourseData & { id: number; isFeatured: boolean; isPublic: boolean }> = [];
-  
-  // Criar todos os cursos da lista ALL_COURSES
-  for (const courseData of ALL_COURSES) {
-    const course = await prisma.course.create({
-      data: {
-        ...courseData,
-        isFeatured: Math.random() > 0.5,
-        isPublic: true,
-      },
-    });
-    createdCourses.push(course);
-    console.log(`   ✅ Created course: ${course.title} (${course.language})`);
+
+  try {
+    const baseCourses = await prisma.$transaction(
+      ALL_COURSES.map((courseData) =>
+        prisma.course.create({
+          data: {
+            ...courseData,
+            isFeatured: Math.random() > 0.5,
+            isPublic: true,
+          },
+        })
+      )
+    );
+
+    createdCourses.push(...baseCourses);
+    for (const course of baseCourses) {
+      console.log(`   ✅ Created course: ${course.title} (${course.language})`);
+    }
+  } catch (error) {
+    logSeedError("createCourses", "course", error, { scope: "ALL_COURSES" });
+    throw error;
   }
 
-  const detailedSpanishCourse = await prisma.course.create({
-    data: {
-      title: SPANISH_COURSE_DATA.title,
-      imageSrc: SPANISH_COURSE_DATA.imageSrc,
-      description: SPANISH_COURSE_DATA.description,
-      language: SPANISH_COURSE_DATA.language,
-      category: SPANISH_COURSE_DATA.category,
-      level: SPANISH_COURSE_DATA.level,
-      estimatedHours: SPANISH_COURSE_DATA.estimatedHours,
-      isFeatured: true,
-      isPublic: true,
-    },
-  });
-  createdCourses.push(detailedSpanishCourse);
+  try {
+    const [detailedSpanishCourse, detailedEnglishCourse] = await prisma.$transaction([
+      prisma.course.create({
+        data: {
+          title: SPANISH_COURSE_DATA.title,
+          imageSrc: SPANISH_COURSE_DATA.imageSrc,
+          description: SPANISH_COURSE_DATA.description,
+          language: SPANISH_COURSE_DATA.language,
+          category: SPANISH_COURSE_DATA.category,
+          level: SPANISH_COURSE_DATA.level,
+          estimatedHours: SPANISH_COURSE_DATA.estimatedHours,
+          isFeatured: true,
+          isPublic: true,
+        },
+      }),
+      prisma.course.create({
+        data: {
+          title: ENGLISH_COURSE_DATA.title,
+          imageSrc: ENGLISH_COURSE_DATA.imageSrc,
+          description: ENGLISH_COURSE_DATA.description,
+          language: ENGLISH_COURSE_DATA.language,
+          category: ENGLISH_COURSE_DATA.category,
+          level: ENGLISH_COURSE_DATA.level,
+          estimatedHours: ENGLISH_COURSE_DATA.estimatedHours,
+          isFeatured: true,
+          isPublic: true,
+        },
+      }),
+    ]);
 
-  const detailedEnglishCourse = await prisma.course.create({
-    data: {
-      title: ENGLISH_COURSE_DATA.title,
-      imageSrc: ENGLISH_COURSE_DATA.imageSrc,
-      description: ENGLISH_COURSE_DATA.description,
-      language: ENGLISH_COURSE_DATA.language,
-      category: ENGLISH_COURSE_DATA.category,
-      level: ENGLISH_COURSE_DATA.level,
-      estimatedHours: ENGLISH_COURSE_DATA.estimatedHours,
-      isFeatured: true,
-      isPublic: true,
-    },
-  });
-  createdCourses.push(detailedEnglishCourse);
+    createdCourses.push(detailedSpanishCourse, detailedEnglishCourse);
+  } catch (error) {
+    logSeedError("createCourses", "course", error, { scope: "DETAILED_COURSES" });
+    throw error;
+  }
 
   return createdCourses;
 };
@@ -693,59 +728,69 @@ const createCourseStructure = async (
 
   const counters: StructureCounters = { units: 0, lessons: 0, challenges: 0, options: 0 };
 
-  for (const unitData of unitsData) {
-    counters.units += 1;
-    const unit = await prisma.unit.create({
-      data: {
-        title: unitData.title,
-        description: unitData.description,
-        courseId: course.id,
-        order: unitData.order,
-        estimatedHours: unitData.estimatedHours,
-        totalExercises: unitData.lessons.reduce((sum, lesson) => sum + lesson.challenges.length, 0),
-      },
-    });
-
-    for (const lessonData of unitData.lessons) {
-      counters.lessons += 1;
-      const lesson = await prisma.lesson.create({
-        data: {
-          title: lessonData.title,
-          description: lessonData.description,
-          unitId: unit.id,
-          order: lessonData.order,
-          estimatedMinutes: lessonData.estimatedMinutes,
-          totalExercises: lessonData.challenges.length,
-        },
-      });
-
-      for (const challengeData of lessonData.challenges) {
-        counters.challenges += 1;
-        const challenge = await prisma.challenge.create({
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const unitData of unitsData) {
+        counters.units += 1;
+        const unit = await tx.unit.create({
           data: {
-            lessonId: lesson.id,
-            type: challengeData.type,
-            question: challengeData.question,
-            order: challengeData.order,
-            difficulty: challengeData.difficulty,
+            title: unitData.title,
+            description: unitData.description,
+            courseId: course.id,
+            order: unitData.order,
+            estimatedHours: unitData.estimatedHours,
+            totalExercises: unitData.lessons.reduce((sum, lesson) => sum + lesson.challenges.length, 0),
           },
         });
 
-        // Create challenge options
-        for (const optionData of challengeData.options) {
-          counters.options += 1;
-          await prisma.challengeOption.create({
+        for (const lessonData of unitData.lessons) {
+          counters.lessons += 1;
+          const lesson = await tx.lesson.create({
             data: {
-              challengeId: challenge.id,
-              text: optionData.text,
-              correct: optionData.correct,
-              explanation: optionData.explanation || null,
-              audioSrc: optionData.audioSrc || null,
+              title: lessonData.title,
+              description: lessonData.description,
+              unitId: unit.id,
+              order: lessonData.order,
+              estimatedMinutes: lessonData.estimatedMinutes,
+              totalExercises: lessonData.challenges.length,
             },
           });
+
+          for (const challengeData of lessonData.challenges) {
+            counters.challenges += 1;
+            const challenge = await tx.challenge.create({
+              data: {
+                lessonId: lesson.id,
+                type: challengeData.type,
+                question: challengeData.question,
+                order: challengeData.order,
+                difficulty: challengeData.difficulty,
+              },
+            });
+
+            for (const optionData of challengeData.options) {
+              counters.options += 1;
+              await tx.challengeOption.create({
+                data: {
+                  challengeId: challenge.id,
+                  text: optionData.text,
+                  correct: optionData.correct,
+                  explanation: optionData.explanation || null,
+                  audioSrc: optionData.audioSrc || null,
+                },
+              });
+            }
+          }
         }
       }
-    }
+    });
+  } catch (error) {
+    logSeedError("createCourseStructure", "course", error, {
+      courseId: course.id,
+      title: course.title,
+      language: course.language,
+    });
+    throw error;
   }
 
   return counters;
@@ -770,35 +815,42 @@ const createUsers = async (roles: Record<string, { id: string; name: string; des
   console.log("👤 Creating users...");
   const hashedPassword = await hash("123456", 12);
 
-  const users: Array<ReturnType<typeof prisma.user.create> extends Promise<infer T> ? T : never> = [];
-  
-  for (const userData of DEMO_USERS) {
-    const user = await prisma.user.create({
-      data: {
-        email: userData.email,
-        name: userData.name,
-        password: hashedPassword,
-        roleId: roles[userData.role].id,
-        emailVerifiedAt: new Date(),
-        status: UserStatus.ACTIVE,
-        xp: userData.xp || 0,
-        gems: userData.gems || 0,
-        hearts: 5,
-        totalPoints: userData.xp || 0,
-        level: Math.floor((userData.xp || 0) / 100) + 1,
-        currentStreak: faker.number.int({ min: 0, max: 10 }),
-        longestStreak: faker.number.int({ min: 5, max: 20 }),
-        totalStudyTime: faker.number.int({ min: 100, max: 1000 }),
-        dailyStudyTime: faker.number.int({ min: 10, max: 60 }),
-        perfectExercises: faker.number.int({ min: 5, max: 50 }),
-        lastActiveAt: new Date(),
-      },
-    });
-    users.push(user);
-    console.log(`   ✅ Created user: ${user.email} (${userData.role})`);
-  }
+  try {
+    const users = await prisma.$transaction(
+      DEMO_USERS.map((userData) =>
+        prisma.user.create({
+          data: {
+            email: userData.email,
+            name: userData.name,
+            password: hashedPassword,
+            roleId: roles[userData.role].id,
+            emailVerifiedAt: new Date(),
+            status: UserStatus.ACTIVE,
+            xp: userData.xp || 0,
+            gems: userData.gems || 0,
+            hearts: 5,
+            totalPoints: userData.xp || 0,
+            level: Math.floor((userData.xp || 0) / 100) + 1,
+            currentStreak: faker.number.int({ min: 0, max: 10 }),
+            longestStreak: faker.number.int({ min: 5, max: 20 }),
+            totalStudyTime: faker.number.int({ min: 100, max: 1000 }),
+            dailyStudyTime: faker.number.int({ min: 10, max: 60 }),
+            perfectExercises: faker.number.int({ min: 5, max: 50 }),
+            lastActiveAt: new Date(),
+          },
+        })
+      )
+    );
 
-  return users;
+    users.forEach((user, index) => {
+      console.log(`   ✅ Created user: ${user.email} (${DEMO_USERS[index].role})`);
+    });
+
+    return users;
+  } catch (error) {
+    logSeedError("createUsers", "user", error);
+    throw error;
+  }
 };
 
 const createUserEnrollments = async (
