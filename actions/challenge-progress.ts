@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth/next";
 import authOptions from "@/app/api/auth/[...nextauth]/auth-options";
 import prisma from "@/lib/prisma";
+import { calculateEnrollmentProgressMetrics } from "@/services/progress.service";
+import { syncEnrollmentDerivedMetrics } from "@/services/enrollments.service";
 
 export const upsertChallengeProgress = async (challengeId: number) => {
   const session = await getServerSession(authOptions);
@@ -72,7 +74,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
         where: { id: activeEnrollment.id },
         data: {
           courseHearts: Math.min(activeEnrollment.courseHearts + 1, 5),
-          coursePoints: activeEnrollment.coursePoints + 10,
           lastAccessedAt: new Date(),
         },
       }),
@@ -87,6 +88,12 @@ export const upsertChallengeProgress = async (challengeId: number) => {
         },
       }),
     ]);
+
+    const metrics = await calculateEnrollmentProgressMetrics(
+      activeEnrollment.id,
+      activeEnrollment.courseId
+    );
+    await syncEnrollmentDerivedMetrics(activeEnrollment.id, metrics);
 
     revalidatePath("/learn");
     revalidatePath("/lesson");
@@ -110,7 +117,6 @@ export const upsertChallengeProgress = async (challengeId: number) => {
     prisma.userEnrollment.update({
       where: { id: activeEnrollment.id },
       data: {
-        coursePoints: activeEnrollment.coursePoints + 10,
         lastAccessedAt: new Date(),
       },
     }),
@@ -122,6 +128,12 @@ export const upsertChallengeProgress = async (challengeId: number) => {
       },
     }),
   ]);
+
+  const metrics = await calculateEnrollmentProgressMetrics(
+    activeEnrollment.id,
+    activeEnrollment.courseId
+  );
+  await syncEnrollmentDerivedMetrics(activeEnrollment.id, metrics);
   revalidatePath("/learn");
   revalidatePath("/lesson");
   revalidatePath("/quests");
