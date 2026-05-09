@@ -9,6 +9,8 @@ export interface BoundStoreState {
   xp: number;
   streak: number;
   gems: number;
+  lingots: number;
+  inventory: Record<string, number>;
   hearts: number;
   following: number;
   followers: number;
@@ -29,6 +31,7 @@ export interface BoundStoreActions {
   increaseHearts: (amount?: number) => void;
   increaseFollowing: (amount?: number) => void;
   increaseFollowers: (amount?: number) => void;
+  purchaseItem: (itemId: string, currency: "gems" | "lingots", cost: number) => boolean;
   resetProgress: () => void;
 }
 
@@ -43,6 +46,8 @@ const initialState: BoundStoreState = {
   xp: 0,
   streak: 0,
   gems: 0,
+  lingots: 0,
+  inventory: {},
   hearts: 5,
   following: 0,
   followers: 0,
@@ -72,12 +77,29 @@ const actions: BoundStoreActions = {
     setState((previous) => ({ ...previous, lessonsCompleted: previous.lessonsCompleted + amount })),
   addToday: (amount = 1) => setState((previous) => ({ ...previous, streak: previous.streak + amount })),
   jumpToUnit: (unit) => setState((previous) => ({ ...previous, lessonsCompleted: Math.max(0, unit) })),
-  increaseLingots: (amount = 1) => setState((previous) => ({ ...previous, gems: previous.gems + amount })),
+  increaseLingots: (amount = 1) =>
+    setState((previous) => ({ ...previous, lingots: previous.lingots + amount, gems: previous.gems + amount })),
   increaseHearts: (amount = 1) => setState((previous) => ({ ...previous, hearts: previous.hearts + amount })),
   increaseFollowing: (amount = 1) =>
     setState((previous) => ({ ...previous, following: previous.following + amount })),
   increaseFollowers: (amount = 1) =>
     setState((previous) => ({ ...previous, followers: previous.followers + amount })),
+  purchaseItem: (itemId, currency, cost) => {
+    if (state[currency] < cost) {
+      return false;
+    }
+
+    setState((previous) => ({
+      ...previous,
+      [currency]: previous[currency] - cost,
+      inventory: {
+        ...previous.inventory,
+        [itemId]: (previous.inventory[itemId] ?? 0) + 1,
+      },
+    }));
+
+    return true;
+  },
   resetProgress: () =>
     setState((previous) => ({
       ...previous,
@@ -86,6 +108,8 @@ const actions: BoundStoreActions = {
       streak: initialState.streak,
       gems: initialState.gems,
       hearts: initialState.hearts,
+      lingots: initialState.lingots,
+      inventory: initialState.inventory,
     })),
 };
 
