@@ -4,6 +4,9 @@
 import { useEffect, type PropsWithChildren, useState } from "react";
 
 import { useRouter, usePathname } from "next/navigation";
+import { LeftBar } from "./components/left-bar";
+import { BottomBar } from "./components/bottom-bar";
+import { getSelectedTabFromPathname } from "./components/nav-items";
 import { useSession } from "next-auth/react";
 
 const MainLayout = ({ children }: PropsWithChildren) => {
@@ -55,8 +58,10 @@ const MainLayout = ({ children }: PropsWithChildren) => {
 
   const isSelectCoursesPage = pathname === "/select-courses";
   const isOnboardingPage = pathname === "/onboarding";
+  const selectedTab = getSelectedTabFromPathname(pathname);
 
-  if (!session) {
+  if (!session && status !== "loading") {
+    router.replace("/");
     return null;
   }
 
@@ -77,9 +82,11 @@ const MainLayout = ({ children }: PropsWithChildren) => {
           ${showLayout ? "pt-6" : ""}
         `}
         >
+          {showLayout && <LeftBar selectedTab={selectedTab} />}
           {children}
         </div>
       </main>
+      {showLayout && <BottomBar selectedTab={selectedTab} />}
     </>
   );
 };
