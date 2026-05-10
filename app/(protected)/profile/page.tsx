@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { useBoundStore } from "@/hooks/useBoundStore";
 import { getAchievementsProgress } from "@/utils/achievements";
+import { getProfileStats } from "@/utils/profile-stats";
 
 const formatDate = (value: string) => {
   if (!value) return "—";
@@ -18,16 +19,6 @@ const formatDate = (value: string) => {
     year: "numeric",
   }).format(date);
 };
-
-const getLeagueByXp = (xp: number) => {
-  if (xp >= 5000) return "Diamante";
-  if (xp >= 2500) return "Obsidiana";
-  if (xp >= 1000) return "Ouro";
-  if (xp >= 500) return "Prata";
-  return "Bronze";
-};
-
-const getPodiumsEstimate = (xp: number) => Math.floor(xp / 1000);
 
 const ProfilePage: NextPage = () => {
   const profile = useBoundStore((store) => ({
@@ -57,8 +48,7 @@ const ProfilePage: NextPage = () => {
     );
   }
 
-  const league = getLeagueByXp(profile.xp);
-  const podiums = getPodiumsEstimate(profile.xp);
+  const stats = getProfileStats(profile);
   const achievements = getAchievementsProgress(profile);
 
   return (
@@ -75,10 +65,10 @@ const ProfilePage: NextPage = () => {
       <section className="rounded-xl border bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-neutral-800">Estatísticas</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <p className="rounded-lg bg-neutral-50 p-3">🔥 Streak: {profile.streak} dias</p>
-          <p className="rounded-lg bg-neutral-50 p-3">⭐ XP total: {profile.xp}</p>
-          <p className="rounded-lg bg-neutral-50 p-3">🏆 Liga: {league}</p>
-          <p className="rounded-lg bg-neutral-50 p-3">🥇 Pódios: {podiums}</p>
+          <p className="rounded-lg bg-neutral-50 p-3">🔥 Streak: {stats.streak} dias</p>
+          <p className="rounded-lg bg-neutral-50 p-3">⭐ XP total: {stats.totalXp}</p>
+          <p className="rounded-lg bg-neutral-50 p-3">🏆 Liga: {stats.league}</p>
+          <p className="rounded-lg bg-neutral-50 p-3">🥇 Pódios: {stats.podiums}</p>
         </div>
       </section>
 
