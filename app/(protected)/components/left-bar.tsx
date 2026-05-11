@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import Logo from "@/components/logo";
 import {
   BookOpen,
@@ -33,7 +34,33 @@ const ICON_BY_NAV: Record<NavIcon, LucideIcon> = {
 
 export const LeftBar = ({ selectedTab, collapsed }: LeftBarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const moreContainerRef = useRef<HTMLDivElement>(null);
   const collapsedState = collapsed ?? isCollapsed;
+
+  useEffect(() => {
+    if (!isMoreOpen) return;
+
+    const onClickOutside = (event: MouseEvent) => {
+      if (!moreContainerRef.current?.contains(event.target as Node)) {
+        setIsMoreOpen(false);
+      }
+    };
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsMoreOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, [isMoreOpen]);
 
   return (
     <aside
@@ -59,6 +86,81 @@ export const LeftBar = ({ selectedTab, collapsed }: LeftBarProps) => {
           {NAV_ITEMS.map((item) => {
             const Icon = ICON_BY_NAV[item.icon];
             const active = item.key === selectedTab;
+
+            if (item.key === "more") {
+              const primaryItems = item.moreMenuItems?.slice(0, 2) ?? [];
+              const secondaryItems = item.moreMenuItems?.slice(2) ?? [];
+
+              return (
+                <div key={item.key} ref={moreContainerRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsMoreOpen((prev) => !prev)}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-xs font-semibold uppercase tracking-[0.14em] transition-all duration-300 ${
+                      collapsedState ? "justify-center" : "justify-start"
+                    } ${
+                      isMoreOpen
+                        ? "border-blue-400/70 bg-blue-500/15 text-blue-100 shadow-[inset_0_0_0_1px_rgba(96,165,250,0.4)]"
+                        : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-slate-100"
+                    }`}
+                    aria-expanded={isMoreOpen}
+                    aria-haspopup="menu"
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    {!collapsedState && <span>{item.labelPt}</span>}
+                  </button>
+
+                  {isMoreOpen && !collapsedState && (
+                    <div
+                      role="menu"
+                      className="absolute left-full top-0 z-30 ml-3 w-72 rounded-2xl border border-blue-900/60 bg-slate-950/95 p-2 shadow-2xl backdrop-blur"
+                    >
+                      <div className="space-y-1">
+                        {primaryItems.map((menuItem) => (
+                          <Link
+                            key={menuItem.label}
+                            href={menuItem.href ?? "#"}
+                            onClick={() => setIsMoreOpen(false)}
+                            className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-100 transition-colors hover:bg-white/10"
+                          >
+                            {menuItem.label}
+                          </Link>
+                        ))}
+                      </div>
+
+                      <div className="my-2 h-px w-full bg-white/10" />
+
+                      <div className="space-y-1">
+                        {secondaryItems.map((menuItem) =>
+                          menuItem.action === "signOut" ? (
+                            <button
+                              key={menuItem.label}
+                              type="button"
+                              onClick={async () => {
+                                setIsMoreOpen(false);
+                                await signOut();
+                              }}
+                              className="block w-full rounded-xl px-4 py-3 text-left text-sm font-semibold text-slate-100 transition-colors hover:bg-white/10"
+                            >
+                              {menuItem.label}
+                            </button>
+                          ) : (
+                            <Link
+                              key={menuItem.label}
+                              href={menuItem.href ?? "#"}
+                              onClick={() => setIsMoreOpen(false)}
+                              className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-100 transition-colors hover:bg-white/10"
+                            >
+                              {menuItem.label}
+                            </Link>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
 
             return (
               <Link
