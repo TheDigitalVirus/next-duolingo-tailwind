@@ -14,6 +14,7 @@ const MainLayout = ({ children }: PropsWithChildren) => {
   const router = useRouter();
   const pathname = usePathname();
   const [isChecking, setIsChecking] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     const checkAuthAndQuestionnaire = async () => {
@@ -73,7 +74,7 @@ const MainLayout = ({ children }: PropsWithChildren) => {
       <main
         className={`
         h-full 
-        ${showLayout ? "pt-12.5 lg:pl-64 lg:pt-0" : ""}
+        ${showLayout ? `pt-12.5 lg:pt-0 ${isSidebarCollapsed ? "lg:pl-20" : "lg:pl-64"}` : ""}
       `}
       >
         <div
@@ -82,7 +83,13 @@ const MainLayout = ({ children }: PropsWithChildren) => {
           ${showLayout ? "pt-6" : ""}
         `}
         >
-          {showLayout && <LeftBar selectedTab={selectedTab} />}
+          {showLayout && (
+            <LeftBar
+              selectedTab={selectedTab}
+              collapsed={isSidebarCollapsed}
+              onCollapsedChange={setIsSidebarCollapsed}
+            />
+          )}
           {children}
         </div>
       </main>
