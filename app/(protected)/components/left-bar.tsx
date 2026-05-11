@@ -11,6 +11,7 @@ import {
   Ellipsis,
   ShieldQuestion,
   ShoppingBag,
+  Sparkles,
   Type,
   type LucideIcon,
 } from "lucide-react";
@@ -181,6 +182,24 @@ export const LeftBar = ({ selectedTab, collapsed }: LeftBarProps) => {
             );
           })}
         </nav>
+
+        {!collapsedState && (
+          <div className="mt-auto rounded-2xl border border-blue-400/40 bg-gradient-to-b from-blue-500/20 via-blue-500/10 to-transparent p-4 shadow-[inset_0_0_0_1px_rgba(96,165,250,0.2)]">
+            <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/20 text-blue-100">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <h3 className="text-sm font-bold text-white">Turbine seu progresso</h3>
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+              Desbloqueie recursos extras e mantenha sua sequência com desafios exclusivos.
+            </p>
+            <Link
+              href="/shop"
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-400 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-950 transition-colors hover:bg-blue-300"
+            >
+              Ver benefícios
+            </Link>
+          </div>
+        )}
       </div>
     </aside>
   );
