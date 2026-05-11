@@ -19,7 +19,8 @@ import { NAV_ITEMS, type NavIcon, type NavTab } from "./nav-items";
 
 type LeftBarProps = {
   selectedTab: NavTab;
-  collapsed?: boolean;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
 };
 
 const ICON_BY_NAV: Record<NavIcon, LucideIcon> = {
@@ -33,11 +34,10 @@ const ICON_BY_NAV: Record<NavIcon, LucideIcon> = {
   more: Ellipsis,
 };
 
-export const LeftBar = ({ selectedTab, collapsed }: LeftBarProps) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export const LeftBar = ({ selectedTab, collapsed, onCollapsedChange }: LeftBarProps) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const moreContainerRef = useRef<HTMLDivElement>(null);
-  const collapsedState = collapsed ?? isCollapsed;
+  const collapsedState = collapsed;
 
   useEffect(() => {
     if (!isMoreOpen) return;
@@ -74,12 +74,10 @@ export const LeftBar = ({ selectedTab, collapsed }: LeftBarProps) => {
           <Logo variant="mobile" />
           <button
             type="button"
-            onClick={() => setIsCollapsed((prev) => !prev)}
-            className={`rounded-lg border border-white/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 transition-all hover:border-blue-400 hover:text-white ${
-              collapsedState || collapsed !== undefined ? "hidden" : ""
-            }`}
+            onClick={() => onCollapsedChange(!collapsedState)}
+            className="rounded-lg border border-white/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 transition-all hover:border-blue-400 hover:text-white"
           >
-            Fechar
+            {collapsedState ? "Abrir" : "Fechar"}
           </button>
         </div>
 
