@@ -1,21 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
+import { PanelLeftClose, PanelLeftOpen, Sparkles } from "lucide-react";
 import Logo from "@/components/logo";
-import {
-  BookOpen,
-  CircleUserRound,
-  Crown,
-  Ellipsis,
-  ShieldQuestion,
-  ShoppingBag,
-  Sparkles,
-  Type,
-  type LucideIcon,
-} from "lucide-react";
-import { NAV_ITEMS, type NavIcon, type NavTab } from "./nav-items";
+import Wordmark from "@/public/wordmark.svg";
+import { NAV_ITEMS, type NavTab } from "./nav-items";
+import { NAV_ICONS } from "./nav-icons";
 
 type LeftBarProps = {
   selectedTab: NavTab;
@@ -23,21 +16,17 @@ type LeftBarProps = {
   onCollapsedChange: (collapsed: boolean) => void;
 };
 
-const ICON_BY_NAV: Record<NavIcon, LucideIcon> = {
-  home: BookOpen,
-  letters: Type,
-  practice: ShieldQuestion,
-  league: Crown,
-  quests: ShieldQuestion,
-  shop: ShoppingBag,
-  profile: CircleUserRound,
-  more: Ellipsis,
-};
+const itemBaseClass =
+  "flex w-full items-center gap-5 rounded-xl border-2 py-2 text-[15px] font-bold uppercase tracking-wide transition-colors duration-200";
+const itemActiveClass = "border-[#3F85A7] bg-[#202F36] text-[#49C0F8]";
+const itemIdleClass = "border-transparent text-[#DCE6EC] hover:bg-[#202F36]";
+
+const menuItemClass =
+  "block w-full rounded-xl px-4 py-3 text-left text-sm font-bold uppercase tracking-wide text-[#DCE6EC] transition-colors hover:bg-[#202F36]";
 
 export const LeftBar = ({ selectedTab, collapsed, onCollapsedChange }: LeftBarProps) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const moreContainerRef = useRef<HTMLDivElement>(null);
-  const collapsedState = collapsed;
 
   useEffect(() => {
     if (!isMoreOpen) return;
@@ -63,28 +52,42 @@ export const LeftBar = ({ selectedTab, collapsed, onCollapsedChange }: LeftBarPr
     };
   }, [isMoreOpen]);
 
+  const itemLayoutClass = collapsed ? "justify-center px-0" : "justify-start px-4";
+  const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
+
   return (
     <aside
-      className={`fixed left-0 top-0 hidden h-screen border-r border-blue-900/70 bg-gradient-to-b from-slate-950 via-slate-900 to-blue-950 p-4 text-slate-200 transition-all duration-300 lg:block ${
-        collapsedState ? "w-20" : "w-64"
+      className={`fixed left-0 top-0 z-40 hidden h-screen border-r-2 border-[#37464F] bg-[#131F24] px-4 py-6 transition-[width] duration-300 lg:block ${
+        collapsed ? "w-20" : "w-64"
       }`}
     >
       <div className="flex h-full flex-col">
-        <div className={`mb-8 flex items-center ${collapsedState ? "justify-center" : "justify-between"}`}>
-          <Logo variant="mobile" />
+        <div
+          className={`mb-6 flex items-center ${
+            collapsed ? "flex-col gap-4" : "justify-between pl-4"
+          }`}
+        >
+          <Link href="/learn" aria-label="Ir para Aprender">
+            {collapsed ? (
+              <Logo variant="mobile" />
+            ) : (
+              <Image src={Wordmark} alt="duolingo" className="h-8 w-auto" priority />
+            )}
+          </Link>
           <button
             type="button"
-            onClick={() => onCollapsedChange(!collapsedState)}
-            className="rounded-lg border border-white/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300 transition-all hover:border-blue-400 hover:text-white"
+            onClick={() => onCollapsedChange(!collapsed)}
+            className="rounded-lg p-1.5 text-[#52656D] transition-colors hover:bg-[#202F36] hover:text-[#DCE6EC]"
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            title={collapsed ? "Expandir menu" : "Recolher menu"}
           >
-            {collapsedState ? "Abrir" : "Fechar"}
+            <ToggleIcon className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="space-y-2">
+        <nav className="flex flex-col gap-2">
           {NAV_ITEMS.map((item) => {
-            const Icon = ICON_BY_NAV[item.icon];
-            const active = item.key === selectedTab;
+            const Icon = NAV_ICONS[item.icon];
 
             if (item.key === "more") {
               const primaryItems = item.moreMenuItems?.slice(0, 2) ?? [];
@@ -95,24 +98,21 @@ export const LeftBar = ({ selectedTab, collapsed, onCollapsedChange }: LeftBarPr
                   <button
                     type="button"
                     onClick={() => setIsMoreOpen((prev) => !prev)}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-xs font-semibold uppercase tracking-[0.14em] transition-all duration-300 ${
-                      collapsedState ? "justify-center" : "justify-start"
-                    } ${
-                      isMoreOpen
-                        ? "border-blue-400/70 bg-blue-500/15 text-blue-100 shadow-[inset_0_0_0_1px_rgba(96,165,250,0.4)]"
-                        : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-slate-100"
+                    className={`${itemBaseClass} ${itemLayoutClass} ${
+                      isMoreOpen ? itemActiveClass : itemIdleClass
                     }`}
                     aria-expanded={isMoreOpen}
                     aria-haspopup="menu"
+                    title={collapsed ? item.labelPt : undefined}
                   >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {!collapsedState && <span>{item.labelPt}</span>}
+                    <Icon className="h-8 w-8 shrink-0" />
+                    {!collapsed && <span>{item.labelPt}</span>}
                   </button>
 
-                  {isMoreOpen && !collapsedState && (
+                  {isMoreOpen && (
                     <div
                       role="menu"
-                      className="absolute left-full top-0 z-30 ml-3 w-72 rounded-2xl border border-blue-900/60 bg-slate-950/95 p-2 shadow-2xl backdrop-blur"
+                      className="absolute left-full top-0 z-50 ml-3 w-72 rounded-2xl border-2 border-[#37464F] bg-[#131F24] p-2 shadow-2xl"
                     >
                       <div className="space-y-1">
                         {primaryItems.map((menuItem) => (
@@ -120,14 +120,14 @@ export const LeftBar = ({ selectedTab, collapsed, onCollapsedChange }: LeftBarPr
                             key={menuItem.label}
                             href={menuItem.href ?? "#"}
                             onClick={() => setIsMoreOpen(false)}
-                            className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-100 transition-colors hover:bg-white/10"
+                            className={menuItemClass}
                           >
                             {menuItem.label}
                           </Link>
                         ))}
                       </div>
 
-                      <div className="my-2 h-px w-full bg-white/10" />
+                      <div className="my-2 h-0.5 w-full bg-[#37464F]" />
 
                       <div className="space-y-1">
                         {secondaryItems.map((menuItem) =>
@@ -139,7 +139,7 @@ export const LeftBar = ({ selectedTab, collapsed, onCollapsedChange }: LeftBarPr
                                 setIsMoreOpen(false);
                                 await signOut();
                               }}
-                              className="block w-full rounded-xl px-4 py-3 text-left text-sm font-semibold text-slate-100 transition-colors hover:bg-white/10"
+                              className={menuItemClass}
                             >
                               {menuItem.label}
                             </button>
@@ -148,7 +148,7 @@ export const LeftBar = ({ selectedTab, collapsed, onCollapsedChange }: LeftBarPr
                               key={menuItem.label}
                               href={menuItem.href ?? "#"}
                               onClick={() => setIsMoreOpen(false)}
-                              className="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-100 transition-colors hover:bg-white/10"
+                              className={menuItemClass}
                             >
                               {menuItem.label}
                             </Link>
@@ -161,38 +161,37 @@ export const LeftBar = ({ selectedTab, collapsed, onCollapsedChange }: LeftBarPr
               );
             }
 
+            const active = item.key === selectedTab;
+
             return (
               <Link
                 key={item.key}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-xl border px-3 py-3 text-xs font-semibold uppercase tracking-[0.14em] transition-all duration-300 ${
-                  collapsedState ? "justify-center" : "justify-start"
-                } ${
-                  active
-                    ? "border-blue-400/70 bg-blue-500/15 text-blue-100 shadow-[inset_0_0_0_1px_rgba(96,165,250,0.4)]"
-                    : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-slate-100"
+                title={collapsed ? item.labelPt : undefined}
+                className={`${itemBaseClass} ${itemLayoutClass} ${
+                  active ? itemActiveClass : itemIdleClass
                 }`}
               >
-                <Icon className="h-5 w-5 shrink-0" />
-                {!collapsedState && <span>{item.labelPt}</span>}
+                <Icon className="h-8 w-8 shrink-0" />
+                {!collapsed && <span>{item.labelPt}</span>}
               </Link>
             );
           })}
         </nav>
 
-        {!collapsedState && (
-          <div className="mt-auto rounded-2xl border border-blue-400/40 bg-gradient-to-b from-blue-500/20 via-blue-500/10 to-transparent p-4 shadow-[inset_0_0_0_1px_rgba(96,165,250,0.2)]">
-            <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/20 text-blue-100">
+        {!collapsed && (
+          <div className="mt-auto rounded-2xl border-2 border-[#37464F] p-4">
+            <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#202F36] text-[#49C0F8]">
               <Sparkles className="h-5 w-5" />
             </div>
             <h3 className="text-sm font-bold text-white">Turbine seu progresso</h3>
-            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+            <p className="mt-1 text-xs leading-relaxed text-[#9DB1BB]">
               Desbloqueie recursos extras e mantenha sua sequência com desafios exclusivos.
             </p>
             <Link
               href="/shop"
-              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-400 px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-950 transition-colors hover:bg-blue-300"
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl border-b-4 border-[#1899D6] bg-[#49C0F8] px-3 py-2 text-xs font-bold uppercase tracking-wide text-[#131F24] transition hover:brightness-110 active:translate-y-0.5 active:border-b-2"
             >
               Ver benefícios
             </Link>

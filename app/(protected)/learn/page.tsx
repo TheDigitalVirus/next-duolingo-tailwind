@@ -1,25 +1,59 @@
 "use client";
 
-import type { NextPage } from "next";
-import { useMemo } from "react";
-import { useBoundStore } from "@/hooks/useBoundStore";
-import { buildUnits } from "@/utils/units";
+import { type NextPage } from "next";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { PracticeExerciseSvg, UpArrowSvg } from "@/components/Svgs";
+import { units } from "@/utils/units";
+import { NotificationPrompt } from "./components/NotificationPrompt";
 import { UnitSection } from "./components/UnitSection";
 
-const LearnPage: NextPage = () => {
-  const lessonsCompleted = useBoundStore((store) => store.lessonsCompleted);
-  const units = useMemo(() => buildUnits(lessonsCompleted), [lessonsCompleted]);
+const floatingButtonClass =
+  "absolute flex items-center justify-center border-2 border-b-4 border-[#37464F] bg-[#131F24] transition hover:bg-[#202F36]";
+
+// Fundo, TopBar e RightBar vêm do layout (app/(protected)/layout.tsx).
+const Learn: NextPage = () => {
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const updateScrollY = () => setScrollY(window.scrollY);
+    updateScrollY();
+    document.addEventListener("scroll", updateScrollY);
+    return () => document.removeEventListener("scroll", updateScrollY);
+  }, []);
 
   return (
-    <main className="min-h-screen space-y-6 p-8">
-      <h1 className="text-3xl font-bold">Learn</h1>
-      <p className="text-sm text-zinc-600">Lições concluídas: {lessonsCompleted}</p>
+    <>
+      <div className="flex flex-col lg:-mt-6">
+        {units.map((unit) => (
+          <UnitSection unit={unit} key={unit.unitNumber} />
+        ))}
 
-      {units.map((unit) => (
-        <UnitSection key={unit.number} unit={unit} />
-      ))}
-    </main>
+        <div className="sticky bottom-28 left-0 right-0 flex items-end justify-between lg:bottom-8">
+          <Link
+            href="/practice"
+            className={`${floatingButtonClass} left-0 h-16 w-16 rounded-full`}
+          >
+            <span className="sr-only">Exercício de prática</span>
+            <PracticeExerciseSvg className="h-8 w-8" />
+          </Link>
+          {scrollY > 100 && (
+            <button
+              className={`${floatingButtonClass} right-0 h-14 w-14 self-end rounded-2xl`}
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            >
+              <span className="sr-only">Voltar ao topo</span>
+              <UpArrowSvg />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="pt-[90px]"></div>
+
+      <NotificationPrompt />
+    </>
   );
 };
 
-export default LearnPage;
+export default Learn;

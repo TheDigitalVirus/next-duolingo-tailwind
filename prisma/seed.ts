@@ -729,61 +729,59 @@ const createCourseStructure = async (
   const counters: StructureCounters = { units: 0, lessons: 0, challenges: 0, options: 0 };
 
   try {
-    await prisma.$transaction(async (tx) => {
-      for (const unitData of unitsData) {
-        counters.units += 1;
-        const unit = await tx.unit.create({
+    for (const unitData of unitsData) {
+      counters.units += 1;
+      const unit = await prisma.unit.create({
+        data: {
+          title: unitData.title,
+          description: unitData.description,
+          courseId: course.id,
+          order: unitData.order,
+          estimatedHours: unitData.estimatedHours,
+          totalExercises: unitData.lessons.reduce((sum, lesson) => sum + lesson.challenges.length, 0),
+        },
+      });
+
+      for (const lessonData of unitData.lessons) {
+        counters.lessons += 1;
+        const lesson = await prisma.lesson.create({
           data: {
-            title: unitData.title,
-            description: unitData.description,
-            courseId: course.id,
-            order: unitData.order,
-            estimatedHours: unitData.estimatedHours,
-            totalExercises: unitData.lessons.reduce((sum, lesson) => sum + lesson.challenges.length, 0),
+            title: lessonData.title,
+            description: lessonData.description,
+            unitId: unit.id,
+            order: lessonData.order,
+            estimatedMinutes: lessonData.estimatedMinutes,
+            totalExercises: lessonData.challenges.length,
           },
         });
 
-        for (const lessonData of unitData.lessons) {
-          counters.lessons += 1;
-          const lesson = await tx.lesson.create({
+        for (const challengeData of lessonData.challenges) {
+          counters.challenges += 1;
+          const challenge = await prisma.challenge.create({
             data: {
-              title: lessonData.title,
-              description: lessonData.description,
-              unitId: unit.id,
-              order: lessonData.order,
-              estimatedMinutes: lessonData.estimatedMinutes,
-              totalExercises: lessonData.challenges.length,
+              lessonId: lesson.id,
+              type: challengeData.type,
+              question: challengeData.question,
+              order: challengeData.order,
+              difficulty: challengeData.difficulty,
             },
           });
 
-          for (const challengeData of lessonData.challenges) {
-            counters.challenges += 1;
-            const challenge = await tx.challenge.create({
+          for (const optionData of challengeData.options) {
+            counters.options += 1;
+            await prisma.challengeOption.create({
               data: {
-                lessonId: lesson.id,
-                type: challengeData.type,
-                question: challengeData.question,
-                order: challengeData.order,
-                difficulty: challengeData.difficulty,
+                challengeId: challenge.id,
+                text: optionData.text,
+                correct: optionData.correct,
+                explanation: optionData.explanation || null,
+                audioSrc: optionData.audioSrc || null,
               },
             });
-
-            for (const optionData of challengeData.options) {
-              counters.options += 1;
-              await tx.challengeOption.create({
-                data: {
-                  challengeId: challenge.id,
-                  text: optionData.text,
-                  correct: optionData.correct,
-                  explanation: optionData.explanation || null,
-                  audioSrc: optionData.audioSrc || null,
-                },
-              });
-            }
           }
         }
       }
-    });
+    }
   } catch (error) {
     logSeedError("createCourseStructure", "course", error, {
       courseId: course.id,

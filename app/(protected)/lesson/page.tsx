@@ -32,6 +32,9 @@ const QUESTIONS: LessonQuestion[] = [
   },
 ];
 
+/** Acertos seguidos exigidos pela missão "Acerte 5 exercícios seguidos". */
+const COMBO_GOAL = 5;
+
 const LessonPage: NextPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,6 +43,14 @@ const LessonPage: NextPage = () => {
   const increaseLessonsCompleted = useBoundStore((store) => store.increaseLessonsCompleted);
   const addToday = useBoundStore((store) => store.addToday);
   const increaseLingots = useBoundStore((store) => store.increaseLingots);
+  const addStudyTime = useBoundStore((store) => store.addStudyTime);
+  const recordComboLesson = useBoundStore((store) => store.recordComboLesson);
+  const recordMistake = useBoundStore((store) => store.recordMistake);
+
+  // Métricas usadas pelas missões do dia.
+  const [startedAt] = useState(() => Date.now());
+  const [correctStreak, setCorrectStreak] = useState(0);
+  const [bestCorrectStreak, setBestCorrectStreak] = useState(0);
 
   const [index, setIndex] = useState(0);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
@@ -71,6 +82,15 @@ const LessonPage: NextPage = () => {
     const result = validate();
     setIsCorrect(result);
     setShowFeedback(true);
+
+    if (result) {
+      const nextStreak = correctStreak + 1;
+      setCorrectStreak(nextStreak);
+      setBestCorrectStreak((best) => Math.max(best, nextStreak));
+    } else {
+      setCorrectStreak(0);
+      recordMistake();
+    }
   };
 
   const handleNext = () => {
@@ -82,6 +102,11 @@ const LessonPage: NextPage = () => {
       addToday(1);
       increaseLingots(rewards.gems);
       increaseLessonsCompleted(1);
+      addStudyTime((Date.now() - startedAt) / 1000);
+      // Lições curtas contam se todas as questões forem acertadas em sequência.
+      if (bestCorrectStreak >= Math.min(COMBO_GOAL, QUESTIONS.length)) {
+        recordComboLesson();
+      }
       setIsCompleted(true);
       return;
     }

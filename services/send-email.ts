@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { MailtrapTransport } from "mailtrap";
 
 export interface SendEmailContent {
   title?: string;
@@ -21,15 +22,11 @@ export interface SendEmailProps {
 }
 
 // Criar transporter com configuração do Mailtrap
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "sandbox.smtp.mailtrap.io",
-  port: Number(process.env.SMTP_PORT) || 2525,
-  secure: false, // Mailtrap usa STARTTLS
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const transporter = nodemailer.createTransport(
+  MailtrapTransport({
+    token: `${process.env.SMTP_PASS}`,
+  })
+);
 
 // Função para verificar conexão SMTP
 export async function verifySMTPConnection() {
@@ -53,10 +50,10 @@ export async function sendEmail({
   template = 'generic',
 }: SendEmailProps) {
   const { title, subtitle, description, buttonLabel, buttonUrl, userName, streakDays, language } = content;
-  
+
   // Gerar HTML baseado no template
   let emailHtml = html;
-  
+
   if (!emailHtml) {
     if (template === 'verification') {
       emailHtml = `
@@ -83,7 +80,7 @@ export async function sendEmail({
                       <h1 style="margin: 0; font-size: 28px; color: #58cc02; font-weight: bold;">Duolingo Clone</h1>
                     </td>
                   </tr>
-                  
+
                   <!-- Content -->
                   <tr>
                     <td style="padding: 40px 20px; text-align: center;">
@@ -92,19 +89,19 @@ export async function sendEmail({
                         Thanks for helping us keep your account secure!<br />
                         Click the button below to finish verifying your email address.
                       </p>
-                      
+
                       <p style="text-align: center; margin: 40px 0;">
                         <a href="${buttonUrl}" style="display: inline-block; background-color: #58cc02; color: white; padding: 16px 32px; text-decoration: none; border-radius: 16px; font-size: 16px; font-weight: bold; border: none; cursor: pointer; box-shadow: 0 4px 0 #3ca000; transition: all 0.1s ease;">
                           CONFIRM EMAIL
                         </a>
                       </p>
-                      
+
                       <p style="margin: 40px 0 0 0; font-size: 14px; color: #999;">
                         Didn't create an account? You can safely ignore this email.
                       </p>
                     </td>
                   </tr>
-                  
+
                   <!-- Footer -->
                   <tr>
                     <td style="padding: 30px 20px; background-color: #f9f9f9; border-top: 1px solid #eee; text-align: center; font-size: 12px; color: #999;">
@@ -146,7 +143,7 @@ export async function sendEmail({
                       <h1 style="margin: 0 0 10px 0; font-size: 28px; color: #58cc02; font-weight: bold;">Duolingo Clone</h1>
                     </td>
                   </tr>
-                  
+
                   <!-- Greeting -->
                   <tr>
                     <td style="padding: 0 20px 20px 20px;">
@@ -156,7 +153,7 @@ export async function sendEmail({
                       <p style="margin: 0 0 30px 0; font-size: 16px; color: #333;">
                         Welcome to Duolingo Clone, your language learning companion!
                       </p>
-                      
+
                       <p style="text-align: center; margin: 30px 0;">
                         <a href="${buttonUrl}" style="display: inline-block; background-color: #58cc02; color: white; padding: 16px 32px; text-decoration: none; border-radius: 16px; font-size: 16px; font-weight: bold; border: none; cursor: pointer; box-shadow: 0 4px 0 #3ca000; transition: all 0.1s ease;">
                           START LEARNING
@@ -164,7 +161,7 @@ export async function sendEmail({
                       </p>
                     </td>
                   </tr>
-                  
+
                   <!-- Streak Tip Section -->
                   <tr>
                     <td class="section" style="padding: 30px 20px; background-color: #f0f9ff; border-top: 1px solid #e0f0ff; border-bottom: 1px solid #e0f0ff;">
@@ -179,7 +176,7 @@ export async function sendEmail({
                       </p>
                     </td>
                   </tr>
-                  
+
                   <!-- Learning Plan Section -->
                   <tr>
                     <td class="section" style="padding: 30px 20px;">
@@ -197,7 +194,7 @@ export async function sendEmail({
                       </p>
                     </td>
                   </tr>
-                  
+
                   <!-- Footer -->
                   <tr>
                     <td style="padding: 30px 20px; background-color: #f9f9f9; border-top: 1px solid #eee; text-align: center; font-size: 12px; color: #999;">
@@ -281,13 +278,13 @@ export async function sendEmail({
     console.log(`📧 Tentando enviar email para: ${to}`);
     console.log(`📄 Assunto: ${subject}`);
     console.log(`🎨 Template usado: ${template}`);
-    
+
     const info = await transporter.sendMail(mailOptions);
     console.log(`✅ Email enviado para ${to}: ${info.messageId}`);
     return info;
   } catch (error) {
     console.error(`❌ Erro ao enviar email para ${to}:`, error);
-    
+
     // Log detalhado do erro
     if (error instanceof Error) {
       console.error('Detalhes do erro:', {
@@ -295,7 +292,7 @@ export async function sendEmail({
         stack: error.stack,
       });
     }
-    
+
     throw error;
   }
 }
@@ -303,12 +300,12 @@ export async function sendEmail({
 // Função para testar o envio de email
 export async function testMailtrap() {
   console.log('🧪 Testando configuração do Mailtrap...');
-  
+
   try {
     await verifySMTPConnection();
-    
+
     console.log('\n📨 Enviando email de teste...');
-    
+
     const testResult = await sendEmail({
       to: 'fenaw36869@gavrom.com',
       subject: 'Teste Mailtrap - Duolingo Clone',
@@ -322,7 +319,7 @@ export async function testMailtrap() {
         buttonUrl: 'https://next-duolingo-tailwind.vercel.app/',
       },
     });
-    
+
     console.log('\n🎉 Teste concluído com sucesso!');
     console.log('👉 Acesse https://mailtrap.io/inboxes para ver os emails recebidos');
     return testResult;

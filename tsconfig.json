@@ -26,6 +26,7 @@
     "paths": {
       "@/*": [
         "./*",
+        "./duolingo-components/*",
         "./app/components/*"
       ]
     }

@@ -152,7 +152,19 @@
   --animate-border-beam: border-beam var(--duration) infinite linear;
   --animate-rainbow: rainbow var(--duration) infinite linear;
   --animate-aurora: aurora var(--duration) infinite linear;
-  
+  --animate-wiggle: wiggle 1s ease-in-out infinite;
+
+  @keyframes wiggle {
+    0%,
+    100% {
+      transform: rotate(-12deg);
+    }
+
+    50% {
+      transform: rotate(12deg);
+    }
+  }
+
   /* Fonte do Duolingo */
   --font-family-din-round: 'din-round', sans-serif;
 

@@ -1,8 +1,16 @@
-export type NavTab = "learn" | "characters" | "leaderboard" | "quests" | "shop" | "profile";
+export type NavTab =
+  | "learn"
+  | "characters"
+  | "practice"
+  | "leaderboard"
+  | "quests"
+  | "shop"
+  | "profile";
 
 export type NavIcon =
   | "home"
   | "letters"
+  | "sounds"
   | "practice"
   | "league"
   | "quests"
@@ -47,11 +55,20 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     key: "characters",
-    label: "Characters",
-    labelPt: "LETRAS",
+    label: "Sounds",
+    labelPt: "SONS",
     href: "/characters",
-    icon: "letters",
-    activeIcon: "letters",
+    icon: "sounds",
+    activeIcon: "sounds",
+    isPrimary: true,
+  },
+  {
+    key: "practice",
+    label: "Practice",
+    labelPt: "PRATICAR",
+    href: "/practice",
+    icon: "practice",
+    activeIcon: "practice",
     isPrimary: true,
   },
   {
@@ -101,6 +118,16 @@ export const NAV_ITEMS: NavItem[] = [
     moreMenuItems: MORE_MENU_ITEMS,
   },
 ];
+
+/**
+ * Páginas principais do app (as da navegação): recebem fundo escuro,
+ * TopBar mobile e RightBar. Lição, onboarding etc. ficam de fora.
+ */
+export const isMainAppRoute = (pathname: string): boolean =>
+  NAV_ITEMS.some(
+    (item) =>
+      item.key !== "more" && (pathname === item.href || pathname.startsWith(`${item.href}/`)),
+  );
 
 export const getSelectedTabFromPathname = (pathname: string): NavTab => {
   const segment = pathname.split("/").filter(Boolean)[0];
