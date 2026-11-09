@@ -2,6 +2,7 @@
 
 import type { NextPage } from "next";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 import { useBoundStore } from "@/hooks/useBoundStore";
 import { getAchievementsProgress } from "@/utils/achievements";
@@ -21,18 +22,32 @@ const formatDate = (value: string) => {
 };
 
 const ProfilePage: NextPage = () => {
-  const profile = useBoundStore((store) => ({
-    loggedIn: store.loggedIn,
-    name: store.name,
-    username: store.username,
-    joinedAt: store.joinedAt,
-    language: store.language,
-    streak: store.streak,
-    xp: store.xp,
-    following: store.following,
-    followers: store.followers,
-    lessonsCompleted: store.lessonsCompleted,
-  }));
+  const { data: session, status } = useSession();
+
+  // Um seletor por campo: um seletor que cria objeto novo a cada leitura
+  // faz o useSyncExternalStore entrar em loop infinito.
+  const name = useBoundStore((store) => store.name);
+  const username = useBoundStore((store) => store.username);
+  const joinedAt = useBoundStore((store) => store.joinedAt);
+  const language = useBoundStore((store) => store.language);
+  const streak = useBoundStore((store) => store.streak);
+  const xp = useBoundStore((store) => store.xp);
+  const following = useBoundStore((store) => store.following);
+  const followers = useBoundStore((store) => store.followers);
+  const lessonsCompleted = useBoundStore((store) => store.lessonsCompleted);
+
+  const profile = {
+    loggedIn: status === "authenticated",
+    name: name || session?.user?.name || "",
+    username: username || session?.user?.email?.split("@")[0] || "",
+    joinedAt,
+    language,
+    streak,
+    xp,
+    following,
+    followers,
+    lessonsCompleted,
+  };
 
   if (!profile.loggedIn) {
     return (

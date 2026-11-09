@@ -10,6 +10,8 @@ import { DarkPageBackground } from "./components/dark-page-background";
 import { getSelectedTabFromPathname, isMainAppRoute } from "./components/nav-items";
 import { RightBar } from "@/components/RightBar";
 import { TopBar } from "@/components/TopBar";
+import { TournamentResults } from "@/components/TournamentResults";
+import { getBoundStoreState, hydrateBoundStore, useBoundStore } from "@/hooks/useBoundStore";
 import { useSession } from "next-auth/react";
 
 const MainLayout = ({ children }: PropsWithChildren) => {
@@ -18,6 +20,17 @@ const MainLayout = ({ children }: PropsWithChildren) => {
   const pathname = usePathname();
   const [isChecking, setIsChecking] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Carrega o progresso salvo do usuário e fecha o torneio da semana anterior.
+  const userId = session?.user?.id;
+  const pendingTournamentResult = useBoundStore((x) => x.pendingTournamentResult);
+  const activateXpBoost = useBoundStore((x) => x.activateXpBoost);
+  const acknowledgeTournamentResult = useBoundStore((x) => x.acknowledgeTournamentResult);
+  useEffect(() => {
+    if (!userId) return;
+    hydrateBoundStore(userId);
+    getBoundStoreState().syncTournament();
+  }, [userId]);
 
   useEffect(() => {
     const checkAuthAndQuestionnaire = async () => {
@@ -104,6 +117,14 @@ const MainLayout = ({ children }: PropsWithChildren) => {
                 <div className="w-full min-w-0 max-w-2xl">{children}</div>
                 <RightBar />
               </div>
+              {pendingTournamentResult && (
+                <TournamentResults
+                  key={pendingTournamentResult.weekKey}
+                  result={pendingTournamentResult}
+                  onClaimReward={activateXpBoost}
+                  onDone={acknowledgeTournamentResult}
+                />
+              )}
             </div>
           ) : (
             children

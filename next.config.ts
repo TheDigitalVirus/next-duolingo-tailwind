@@ -11,7 +11,8 @@ const nextConfig: import('next').NextConfig = {
         pathname: "/**",
       },
     ],
-	},
+  },
+	allowedDevOrigins: ['*']
 };
 
 export default nextConfig;

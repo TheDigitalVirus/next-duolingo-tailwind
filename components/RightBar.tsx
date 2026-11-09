@@ -2,27 +2,29 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import dayjs from "dayjs";
 import {
-  BronzeLeagueSvg,
   EmptyFireSvg,
   EmptyGemSvg,
   FireSvg,
   GemSvg,
   LessonTopBarEmptyHeart,
   LessonTopBarHeart,
-  LightningProgressSvg,
-  TreasureProgressSvg,
 } from "./Svgs";
 import { Calendar } from "./Calendar";
 import { CourseImage, CourseSwitcherMenu } from "./CourseSwitcher";
+import { DailyQuestList, useQuestHistory } from "./DailyQuests";
+import { LeagueBadge } from "./LeagueBadge";
 import { ProBadge } from "./ProBadge";
-import { useBoundStore } from "@/hooks/useBoundStore";
+import { UserAvatar } from "./UserAvatar";
+import { LESSONS_TO_UNLOCK_LEAGUES, useBoundStore } from "@/hooks/useBoundStore";
 import { useEnrollments } from "@/hooks/use-enrollments";
+import { getEarnedMonthlyMedals, monthName, MONTHLY_QUESTS_GOAL } from "@/utils/daily-quests";
+import { LEAGUES } from "@/utils/leagues";
 import ProMascot from "@/public/duo-pro.svg";
-
-const LESSONS_TO_UNLOCK_LEAGUES = 10;
 
 const cardClass = "rounded-2xl border-2 border-[#37464F] p-5 text-[#DCE6EC]";
 
@@ -204,9 +206,11 @@ const ProPromoSection = () => (
 
 const LeaguesSection = () => {
   const lessonsCompleted = useBoundStore((x) => x.lessonsCompleted);
+  const leagueIndex = useBoundStore((x) => x.leagueIndex);
   const xpThisWeek = useBoundStore((x) => x.xpThisWeek());
   const locked = lessonsCompleted < LESSONS_TO_UNLOCK_LEAGUES;
   const lessonsLeft = LESSONS_TO_UNLOCK_LEAGUES - lessonsCompleted;
+  const league = LEAGUES[leagueIndex] ?? LEAGUES[0];
 
   return (
     <article className={cardClass}>
@@ -214,7 +218,7 @@ const LeaguesSection = () => {
       <div className="mt-2 flex items-start gap-4">
         <div className="flex-1">
           <h2 className="text-lg font-bold text-white">
-            {locked ? "Desbloqueie as ligas!" : "Liga Bronze"}
+            {locked ? "Desbloqueie as ligas!" : `Divisão ${league.name}`}
           </h2>
           <p className="mt-2 text-[15px] leading-6">
             {locked
@@ -222,7 +226,7 @@ const LeaguesSection = () => {
               : `Você ganhou ${xpThisWeek} XP esta semana até agora.`}
           </p>
         </div>
-        {locked ? <LockedLeaderboardsSvg /> : <BronzeLeagueSvg />}
+        {locked ? <LockedLeaderboardsSvg /> : <LeagueBadge league={league} size={64} />}
       </div>
       <Link href="/leaderboard" className={`${outlineButtonClass} mt-5`}>
         Ver ligas
@@ -231,119 +235,132 @@ const LeaguesSection = () => {
   );
 };
 
-const StopwatchSvg = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden>
-    <rect x="20" y="4" width="8" height="6" rx="2" fill="#1899D6" />
-    <circle cx="24" cy="27" r="17" fill="#1CB0F6" />
-    <circle cx="24" cy="27" r="12.5" fill="white" />
-    <path d="M24 27V19" stroke="#1CB0F6" strokeWidth="3.5" strokeLinecap="round" />
-    <circle cx="24" cy="27" r="2.5" fill="#1CB0F6" />
-  </svg>
-);
-
-const ComboSvg = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden>
-    <circle cx="24" cy="24" r="20" fill="#58CC02" />
-    <circle cx="24" cy="24" r="13" fill="white" />
-    <circle cx="24" cy="24" r="7" fill="#58CC02" />
-    <path d="M24 24 40 8" stroke="#FF4B4B" strokeWidth="4" strokeLinecap="round" />
-    <path d="M36 6h6v6" stroke="#FF4B4B" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-type Chest = "bronze" | "silver" | "gold";
-
-/** O baú dourado recolorido por filtro CSS para bronze e prata. */
-const CHEST_FILTER: Record<Chest, string> = {
-  bronze: "sepia saturate-150 hue-rotate-[-15deg] brightness-90",
-  silver: "grayscale brightness-125",
-  gold: "",
-};
-
-const QuestRow = ({
-  icon,
-  title,
-  current,
-  goal,
-  chest,
-}: {
-  icon: ReactNode;
-  title: string;
-  current: number;
-  goal: number;
-  chest: Chest;
-}) => {
-  const clamped = Math.min(current, goal);
-  const done = clamped >= goal;
-
-  return (
-    <div className="flex items-center gap-4">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center">{icon}</div>
-      <div className="flex flex-1 flex-col gap-2">
-        <h3 className="font-bold leading-snug text-white">{title}</h3>
-        <div className="flex items-center gap-1">
-          <div className="relative h-4 flex-1 overflow-hidden rounded-full bg-[#37464F]">
-            <div
-              className={`h-full rounded-full transition-[width] duration-500 ${
-                done ? "bg-[#58CC02]" : "bg-[#FFC800]"
-              }`}
-              style={{ width: `${(clamped / goal) * 100}%` }}
-            />
-            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[#DCE6EC]">
-              {clamped} / {goal}
-            </span>
-          </div>
-          <span className={`-ml-3 scale-75 ${CHEST_FILTER[chest]}`}>
-            <TreasureProgressSvg />
-          </span>
-        </div>
-      </div>
+const DailyQuestsSection = () => (
+  <article className={cardClass}>
+    <div className="flex items-center justify-between">
+      <h2 className="text-lg font-bold text-white">Missões do dia</h2>
+      <Link
+        href="/quests"
+        className="text-sm font-bold uppercase tracking-wide text-[#49C0F8] hover:brightness-110"
+      >
+        Ver todas
+      </Link>
     </div>
-  );
-};
+    <div className="mt-5">
+      <DailyQuestList />
+    </div>
+  </article>
+);
 
-const COMBO_LESSONS_GOAL = 3;
-const STUDY_MINUTES_GOAL = 5;
-
-const DailyQuestsSection = () => {
-  const xpToday = useBoundStore((x) => x.xpToday());
-  const goalXp = useBoundStore((x) => x.goalXp);
-  const minutesToday = useBoundStore((x) => x.minutesToday());
-  const comboLessonsToday = useBoundStore((x) => x.comboLessonsToday());
+/** Medalhas das missões mensais concluídas (lado direito da página Missões). */
+const MedalsSection = () => {
+  const history = useQuestHistory();
+  const medals = getEarnedMonthlyMedals(history);
 
   return (
     <article className={cardClass}>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-white">Missões do dia</h2>
+        <h2 className="text-lg font-bold text-white">Medalhas</h2>
         <Link
-          href="/quests"
+          href="/profile"
           className="text-sm font-bold uppercase tracking-wide text-[#49C0F8] hover:brightness-110"
         >
           Ver todas
         </Link>
       </div>
-      <div className="mt-5 flex flex-col gap-6">
-        <QuestRow
-          icon={<LightningProgressSvg size={48} />}
-          title={`Ganhe ${goalXp} XP`}
-          current={xpToday}
-          goal={goalXp}
-          chest="bronze"
+
+      {medals.length === 0 ? (
+        <div className="mt-5 flex items-center gap-4">
+          <MonthMedal label="?" muted />
+          <p className="text-[15px] leading-6">
+            Complete {MONTHLY_QUESTS_GOAL} missões em um mês para ganhar sua primeira medalha.
+          </p>
+        </div>
+      ) : (
+        <ul className="mt-5 flex flex-col gap-5">
+          {medals.map((month) => (
+            <li key={month.format("YYYY-MM")} className="flex items-center gap-4">
+              <MonthMedal label={monthName(month).slice(0, 3)} />
+              <div>
+                <p className="font-bold text-white">Missão de {monthName(month)}</p>
+                <p className="text-sm text-[#52656D]">
+                  {monthName(month)} de {month.year()}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </article>
+  );
+};
+
+const MonthMedal = ({ label, muted = false }: { label: string; muted?: boolean }) => (
+  <span
+    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-4 text-xs font-extrabold uppercase ${
+      muted
+        ? "border-[#37464F] bg-[#202F36] text-[#52656D]"
+        : "border-[#E5A800] bg-[#FFC800] text-[#7A4F00]"
+    }`}
+    aria-hidden
+  >
+    {label}
+  </span>
+);
+
+const STATUS_OPTIONS = ["😎", "🎉", "💪", "👀", "🍿", "🔥", "😤", "💯", "💩", "🏆", "🤑", "😺"];
+
+/** "Escolha o seu status": emoji exibido no avatar (perfil e ligas). */
+const StatusPickerSection = () => {
+  const { data: session } = useSession();
+  const statusEmoji = useBoundStore((x) => x.statusEmoji);
+  const setStatusEmoji = useBoundStore((x) => x.setStatusEmoji);
+  const name = session?.user?.name ?? "Você";
+
+  return (
+    <article className={cardClass}>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-white">Escolha o seu status</h2>
+        <button
+          type="button"
+          onClick={() => setStatusEmoji(null)}
+          disabled={!statusEmoji}
+          className="text-sm font-bold uppercase tracking-wide text-[#49C0F8] transition hover:brightness-110 disabled:opacity-40"
+        >
+          Limpar
+        </button>
+      </div>
+
+      <div className="my-6 flex justify-center">
+        <UserAvatar
+          name={name}
+          imageUrl={session?.user?.image}
+          status={statusEmoji}
+          size={72}
+          online
         />
-        <QuestRow
-          icon={<StopwatchSvg />}
-          title={`Estude por ${STUDY_MINUTES_GOAL} minutos`}
-          current={minutesToday}
-          goal={STUDY_MINUTES_GOAL}
-          chest="silver"
-        />
-        <QuestRow
-          icon={<ComboSvg />}
-          title={`Acerte 5 exercícios seguidos em ${COMBO_LESSONS_GOAL} lições`}
-          current={comboLessonsToday}
-          goal={COMBO_LESSONS_GOAL}
-          chest="gold"
-        />
+      </div>
+
+      <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label="Status">
+        {STATUS_OPTIONS.map((emoji) => {
+          const selected = emoji === statusEmoji;
+          return (
+            <button
+              key={emoji}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => setStatusEmoji(emoji)}
+              className={`flex aspect-square items-center justify-center rounded-xl border-2 border-b-4 text-2xl transition active:translate-y-0.5 active:border-b-2 ${
+                selected
+                  ? "border-[#58A700] bg-[#58CC02]/20"
+                  : "border-[#37464F] hover:bg-[#202F36]"
+              }`}
+            >
+              {emoji}
+            </button>
+          );
+        })}
       </div>
     </article>
   );
@@ -407,8 +424,40 @@ const useStickyTop = () => {
   return { ref, top };
 };
 
+/** Seções da RightBar por página (a linha de status e o rodapé aparecem sempre). */
+const getSectionsForPath = (pathname: string) => {
+  if (pathname.startsWith("/quests")) return <MedalsSection />;
+  if (pathname.startsWith("/profile")) return <StatusPickerSection />;
+  // Na loja a promoção já está no conteúdo principal.
+  if (pathname.startsWith("/shop")) {
+    return (
+      <>
+        <LeaguesSection />
+        <DailyQuestsSection />
+      </>
+    );
+  }
+  // Nas ligas o ranking já está no conteúdo principal.
+  if (pathname.startsWith("/leaderboard")) {
+    return (
+      <>
+        <ProPromoSection />
+        <DailyQuestsSection />
+      </>
+    );
+  }
+  return (
+    <>
+      <ProPromoSection />
+      <LeaguesSection />
+      <DailyQuestsSection />
+    </>
+  );
+};
+
 export const RightBar = () => {
   const { ref, top } = useStickyTop();
+  const pathname = usePathname();
 
   return (
     <aside
@@ -417,9 +466,7 @@ export const RightBar = () => {
       className="sticky hidden w-[368px] shrink-0 flex-col gap-5 self-start lg:flex"
     >
       <StatsRow />
-      <ProPromoSection />
-      <LeaguesSection />
-      <DailyQuestsSection />
+      {getSectionsForPath(pathname)}
       <RightBarFooter />
     </aside>
   );

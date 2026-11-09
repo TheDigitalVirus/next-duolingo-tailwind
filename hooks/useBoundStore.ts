@@ -1,5 +1,13 @@
 import { useSyncExternalStore } from "react";
 import dayjs, { type Dayjs } from "dayjs";
+import {
+  computeTournamentResult,
+  getWeekKey,
+  type TournamentResult,
+} from "@/utils/tournament";
+
+/** Lições necessárias para participar das ligas. */
+export const LESSONS_TO_UNLOCK_LEAGUES = 10;
 
 const DATE_KEY_FORMAT = "YYYY-MM-DD";
 const toDateKey = (day: Dayjs) => day.format(DATE_KEY_FORMAT);
@@ -33,6 +41,18 @@ export interface BoundStoreState {
   mistakes: number;
   /** Quantas vezes cada som foi praticado (chave = id do som). */
   soundPractice: Record<string, number>;
+  /** Emoji de status exibido no avatar (null = sem status). */
+  statusEmoji: string | null;
+  /** Timestamp (ms) até quando a poção de XP em dobro vale. */
+  xpBoostUntil: number | null;
+  /** Lições concluídas por dia (chave YYYY-MM-DD). */
+  lessonsByDate: Record<string, number>;
+  /** Divisão atual nas ligas (índice em LEAGUES). */
+  leagueIndex: number;
+  /** Semana (getWeekKey) do torneio em andamento. */
+  tournamentWeek: string | null;
+  /** Resultado de um torneio encerrado ainda não visto pelo usuário. */
+  pendingTournamentResult: TournamentResult | null;
 }
 
 export interface BoundStoreActions {
@@ -45,6 +65,12 @@ export interface BoundStoreActions {
   recordComboLesson: () => void;
   recordMistake: () => void;
   practiceSound: (soundId: string) => void;
+  setStatusEmoji: (emoji: string | null) => void;
+  /** Ativa (ou estende) o XP em dobro por `minutes` minutos. */
+  activateXpBoost: (minutes: number) => void;
+  /** Fecha o torneio da semana anterior, se houver, e entra no da semana atual. */
+  syncTournament: () => void;
+  acknowledgeTournamentResult: () => void;
   setLoggedIn: (value: boolean) => void;
   setName: (value: string) => void;
   setUsername: (value: string) => void;
@@ -86,6 +112,12 @@ const initialState: BoundStoreState = {
   comboLessonsByDate: {},
   mistakes: 0,
   soundPractice: {},
+  statusEmoji: null,
+  xpBoostUntil: null,
+  lessonsByDate: {},
+  leagueIndex: 0,
+  tournamentWeek: null,
+  pendingTournamentResult: null,
 };
 
 const addToDay = (record: Record<string, number>, amount: number) => {
@@ -96,12 +128,43 @@ const addToDay = (record: Record<string, number>, amount: number) => {
 let state: BoundStoreState = { ...initialState };
 const listeners = new Set<() => void>();
 
+/** Chave do localStorage do usuário logado (null = ainda não hidratado). */
+let storageKey: string | null = null;
+
 const emitChange = () => {
   listeners.forEach((listener) => listener());
 };
 
+const persist = () => {
+  if (!storageKey) return;
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  } catch {
+    // Armazenamento cheio ou bloqueado: segue só em memória.
+  }
+};
+
 const setState = (updater: (previous: BoundStoreState) => BoundStoreState) => {
   state = updater(state);
+  persist();
+  emitChange();
+};
+
+/**
+ * Carrega o progresso salvo do usuário. Chame num useEffect (após montar)
+ * para não divergir do HTML renderizado no servidor.
+ */
+export const hydrateBoundStore = (userId: string) => {
+  const key = `duo-store:${userId}`;
+  if (storageKey === key) return;
+  storageKey = key;
+
+  try {
+    const saved = localStorage.getItem(key);
+    state = saved ? { ...initialState, ...JSON.parse(saved) } : { ...initialState };
+  } catch {
+    state = { ...initialState };
+  }
   emitChange();
 };
 
@@ -121,6 +184,32 @@ const actions: BoundStoreActions = {
       comboLessonsByDate: addToDay(previous.comboLessonsByDate, 1),
     })),
   recordMistake: () => setState((previous) => ({ ...previous, mistakes: previous.mistakes + 1 })),
+  setStatusEmoji: (emoji) => setState((previous) => ({ ...previous, statusEmoji: emoji })),
+  activateXpBoost: (minutes) =>
+    setState((previous) => {
+      const start = Math.max(Date.now(), previous.xpBoostUntil ?? 0);
+      return { ...previous, xpBoostUntil: start + minutes * 60_000 };
+    }),
+  syncTournament: () => {
+    const currentWeek = getWeekKey();
+    if (state.tournamentWeek === currentWeek) return;
+
+    // Primeira vez (ou ligas ainda bloqueadas): só entra no torneio atual.
+    if (!state.tournamentWeek || state.lessonsCompleted < LESSONS_TO_UNLOCK_LEAGUES) {
+      setState((previous) => ({ ...previous, tournamentWeek: currentWeek }));
+      return;
+    }
+
+    const result = computeTournamentResult(state.tournamentWeek, state.leagueIndex, state);
+    setState((previous) => ({
+      ...previous,
+      tournamentWeek: currentWeek,
+      leagueIndex: result?.newLeagueIndex ?? previous.leagueIndex,
+      pendingTournamentResult: result ?? previous.pendingTournamentResult,
+    }));
+  },
+  acknowledgeTournamentResult: () =>
+    setState((previous) => ({ ...previous, pendingTournamentResult: null })),
   practiceSound: (soundId) =>
     setState((previous) => ({
       ...previous,
@@ -142,9 +231,11 @@ const actions: BoundStoreActions = {
   setUsername: (value) => setState((previous) => ({ ...previous, username: value })),
   setJoinedAt: (value) => setState((previous) => ({ ...previous, joinedAt: value })),
   setLanguage: (value) => setState((previous) => ({ ...previous, language: value })),
-  increaseXp: (amount = 1) =>
+  increaseXp: (baseAmount = 1) =>
     setState((previous) => {
       const today = toDateKey(dayjs());
+      const boosted = previous.xpBoostUntil !== null && Date.now() < previous.xpBoostUntil;
+      const amount = boosted ? baseAmount * 2 : baseAmount;
       return {
         ...previous,
         xp: previous.xp + amount,
@@ -159,6 +250,7 @@ const actions: BoundStoreActions = {
       return {
         ...previous,
         streak: previous.streak + amount,
+        lessonsByDate: addToDay(previous.lessonsByDate, amount),
         activeDays: previous.activeDays.includes(today)
           ? previous.activeDays
           : [...previous.activeDays, today],
@@ -204,6 +296,10 @@ const actions: BoundStoreActions = {
       comboLessonsByDate: initialState.comboLessonsByDate,
       mistakes: initialState.mistakes,
       soundPractice: initialState.soundPractice,
+      lessonsByDate: initialState.lessonsByDate,
+      leagueIndex: initialState.leagueIndex,
+      tournamentWeek: initialState.tournamentWeek,
+      pendingTournamentResult: initialState.pendingTournamentResult,
     })),
 };
 
@@ -219,5 +315,6 @@ export const useBoundStore = <T>(selector: (store: BoundStore) => T): T =>
 
 export const resetBoundStore = () => {
   state = { ...initialState };
+  persist();
   emitChange();
 };
